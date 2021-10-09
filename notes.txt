@@ -1,0 +1,68 @@
+The boot process
+----------------
+
+We take the BIOS as a given. The BIOS is a set of software functions stored on a chip which is loaded into memory and initialized when the computer is switched on. The BIOS detects and gives basic control of the essential devices (keyboard, screen and hard disks).
+
+The BIOS's job is to boot the computer by reading the _boot sector_ into memory. The boot sector is a portion of memory (in 512-byte chunks) starting at the very first physical location on the hard disk. The BIOS knows it has reached the end of the boot sector when it encounters the 2-byte magic number 0xaa55.
+
+In memory, these bytes will be written '55 aa' as the x86 is a little-endian system, meaning that multi-byte values are written with the least-significant preceding the most-significant bytes. This magic number will occur at the end of a 512-byte block.
+
+While booting, the BIOS loops through each physical device and finds the one which contains the boot sector. The data in the boot sector is then loaded into memory as the operating system's machine code. We are the ones who create the operating system machine code.
+
+The simplest example of machine code would be a block of 512 bytes which:
+
+ - ends with the magic number
+ - begins with a loop containing a very simple jump instruction
+ - is padded the rest of the way with zero-valued bytes[^1].
+
+We can write the following machine code, using a hex editor like Hex Fiend, to the file _miminal.bin_:
+
+    eb fe 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    ...
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 aa
+
+The file is padded with zero values to contain 512 bytes in all.
+
+Next, we must emulate the x86 64-bit processor into which this machine code is booted and executed. We can do this using a hardware emulator like QEMU:
+
+    qemu-system-x64_64 miminal.bin
+
+The result is that it should launch the boot process and then hang as there is no operating system code to be executed[^2].
+
+Assembly language
+-----------------
+
+An x86 assembler such as nasm can be used to convert assembly language into bytecode for an x86 processor. Assembly language is meant to provide a human-readable way to write machine code, with short mnemonics for many CPU instructions in the x86 instruction set. _boot_sector.asm_ is an assembly code file for the minimal boot sector we created in the last section. We can assemble the machine code with the following command:
+
+    nasm boot_sector.asm -f bin -o boot_sector.bin
+
+It is worth noting that at this point our processor boots into _16-bit real mode_, which means that its instructions have a length of 16 bits and addresses refer to the corresponding real locations in physical memory. Real mode stands in opposition to _protected mode_, which prevents a userspace process from accessing kernel memory.
+
+When programming assembly, we can make use of interrupts. These are a mechanism that have the CPU temporarily halt what it is doing and run a BIOS routine. Each interrupt is represented by an index in the interrupt vector, a table initially set up by the BIOS at physical address 0x0 in memory. The entries in this table are pointers to _interrupt service routines_, or sequences of instructions in memory that perform the function of a specific interrupt.
+
+The CPU has four registers for quick storage of two-byte values:
+
+- `ax`, with high-byte `ah` and low-byte `al`,
+- `bx`, with high-byte `bh` and low-byte `bl`,
+- `cx`, ...
+- `dx`, ...
+
+A value can be assigned to a register using the `mov` operation:
+
+    mov ax, 1234 ; store the decimal number 1234 in ax
+
+Let us now write a boot sector that prints "hello world" to the screen. We need the interrupt code for a BIOS routine that prints a character to the screen. It turns out we need the BIOS interrupt 0x10, with `ah` set to 0x0e to indicate teletype mode. This prints to screen the ASCII character stored in byte `al` and advances the cursor by one character. The assembly code for this is in _hello_simple.asm_.
+
+---
+
+Dependencies
+------------
+- MacOSX: host operating system, runs QEmu and editors.
+- Hex Fiend: hex editor, used to write raw binaries.
+- QEmu: x86 emulator, emulates a 64-bit x86 processor.
+- nasm: x86 assembler, assembles bytecode for x86.
+
+[^1]: The CPU interprets zero-valued bytes as no-ops and thus know to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
+
+[^2]: If you change the magic numbers at the end of the file and try again, the BIOS should crash saying "no bootable device".
