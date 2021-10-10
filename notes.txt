@@ -39,7 +39,7 @@ An x86 assembler such as nasm can be used to convert assembly language into byte
 
 It is worth noting that at this point our processor boots into _16-bit real mode_, which means that its instructions have a length of 16 bits and addresses refer to the corresponding real locations in physical memory. Real mode stands in opposition to _protected mode_, which prevents a userspace process from accessing kernel memory.
 
-When programming assembly, we can make use of interrupts. These are a mechanism that have the CPU temporarily halt what it is doing and run a BIOS routine. Each interrupt is represented by an index in the interrupt vector, a table initially set up by the BIOS at physical address 0x0 in memory. The entries in this table are pointers to _interrupt service routines_, or sequences of instructions in memory that perform the function of a specific interrupt.
+When programming assembly, we can make use of interrupts. These are a mechanism that have the CPU temporarily halt what it is doing and run a BIOS routine. Each interrupt is represented by an index in the interrupt vector, a table initially set up by the BIOS at physical address 0x0 in memory. The entries in this table are pointers to _interrupt service routines_ (ISRs), or sequences of instructions in memory that perform the function of a specific interrupt.
 
 The CPU has four registers for quick storage of two-byte values:
 
@@ -54,15 +54,65 @@ A value can be assigned to a register using the `mov` operation:
 
 Let us now write a boot sector that prints "hello world" to the screen. We need the interrupt code for a BIOS routine that prints a character to the screen. It turns out we need the BIOS interrupt 0x10, with `ah` set to 0x0e to indicate teletype mode. This prints to screen the ASCII character stored in byte `al` and advances the cursor by one character. The assembly code for this is in _hello_simple.asm_.
 
+We know that the BIOS loads our 512-byte boot sector into some place in memory and then, after initializing, leaves the CPU to jump to the start of the boot sector and begin executing. During initialization, the BIOS stored the interrupt vector at the very start of memory (0x0) and stored ISR code in various places as well. To avoid collision with any of these, the BIOS loads the boot sector machine code to a reserved block at address 0x7c00.
+
+This figure represents the typical layout of lower memory after boot:
+
+                                                
+            |                                  |
+            | free                             |
+    0x100000|----------------------------------|
+            | BIOS (256 kB)                    |
+     0xC0000|----------------------------------|
+            | video memory (128 kB)            |
+     0xA0000|----------------------------------|
+            | extended BIOS data area (639 kB) |
+     0x9fc00|----------------------------------|
+            | free (638 kB)                    |
+      0x7e00|----------------------------------|
+            | loaded boot sector (512 bytes)   |
+      0x7c00|----------------------------------|
+            |                                  |
+       0x500|----------------------------------|
+            | BIOS data area (256 bytes)       |
+       0x400|----------------------------------|
+            | interrupt vector table (1 kB)    |
+         0x0====================================
+     
+
+An exercise in locating data with these offsets is contained in the assembly code _find_the_byte.asm_.
+
+The CPU also has an important functionality called the _stack_. The stack is a way to easily store and retrieve values beyond what can be stored in the registers without worrying about those values' actual locations in memory. The stack is defined by two values, `bp` and `sp`. `bp` is the memory location which serves as the base of the stack. `sp` is the location of the item on top of the stack, which is initially `bp`. When a word (i.e. two bytes in 16-bit real mode) is added to the stack, those bytes are written at location `sp` and `sp` is decremented to point to the next space down in memory. Thus the stack begins at `bp` and extends downward in memory according to the number of words it contains. For this reason it is important to allocate `bp`, the base of the stack, far enough above memory regions used for other code that the stack will never grow to the point those regions are overwritten. The assembly program `stack_example.asm` demonstrates usage of the stack to print "ABC".
+
+Several more stack utilities:
+
+ - `call`: stores the return address (address after current one) on the stack and then jumps to function
+ - `ret`: used at the end of the function, pops top value (return address) the stack and jumps to it
+ - `pusha`: used at the beginning of a function, pushes all registers to the stack to avoid overwriting data they contained if function uses those registers
+ - `popa`: used at the end of a function, pops top values from the stack back into the registers
+
+So code with a function will look like:
+
+    some_function:
+        pusha        ; Push all registers to the stack.
+        mov bx, 10   ; Do some stuff with registers.
+        add bx, 20
+        mov ah, 0x0e ; Setup BIOS teletype output.
+        int 0x10     ; Print character.
+        popa         ; Pop values from stack back into registers.
+        ret          ; Return to address right after function call that got us here.
+     
+
 ---
 
 Dependencies
 ------------
 - MacOSX: host operating system, runs QEmu and editors.
-- Hex Fiend: hex editor, used to write raw binaries.
+- Hex Fiend: hex editor, used to write and read raw binaries.
 - QEmu: x86 emulator, emulates a 64-bit x86 processor.
-- nasm: x86 assembler, assembles bytecode for x86.
+- nasm: x86 assembler, assembles bytecode for an x86 processor.
+- Make: compilation tool, automates build process.
 
-[^1]: The CPU interprets zero-valued bytes as no-ops and thus know to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
+[^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
 
 [^2]: If you change the magic numbers at the end of the file and try again, the BIOS should crash saying "no bootable device".
