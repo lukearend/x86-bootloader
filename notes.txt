@@ -26,7 +26,7 @@ The file is padded with zero values to contain 512 bytes in all.
 
 Next, we must emulate the x86 64-bit processor into which this machine code is booted and executed. We can do this using a hardware emulator like QEMU:
 
-    qemu-system-x64_64 miminal.bin
+    qemu-system-x84_64 miminal.bin
 
 The result is that it should launch the boot process and then hang as there is no operating system code to be executed[^2].
 
@@ -82,6 +82,8 @@ This figure represents the typical layout of lower memory after boot:
 
 An exercise in locating data with these offsets is contained in the assembly code _find_the_byte.asm_.
 
+#### The stack
+
 The CPU also has an important functionality called the _stack_. The stack is a way to easily store and retrieve values beyond what can be stored in the registers without worrying about those values' actual locations in memory. The stack is defined by two values, `bp` and `sp`. `bp` is the memory location which serves as the base of the stack. `sp` is the location of the item on top of the stack, which is initially `bp`. When a word (i.e. two bytes in 16-bit real mode) is added to the stack, those bytes are written at location `sp` and `sp` is decremented to point to the next space down in memory. Thus the stack begins at `bp` and extends downward in memory according to the number of words it contains. For this reason it is important to allocate `bp`, the base of the stack, far enough above memory regions used for other code that the stack will never grow to the point those regions are overwritten. The assembly program `stack_example.asm` demonstrates usage of the stack to print "ABC".
 
 Several more stack utilities:
@@ -102,6 +104,17 @@ So code with a function will look like:
         popa         ; Pop values from stack back into registers.
         ret          ; Return to address right after function call that got us here.
      
+
+#### Include files
+
+The statement
+
+    %include "my_file.asm"    
+
+
+will be completely replaced by the contents of the file.
+
+A more sophisticated "hello world" program that ties these things together is _hello_advanced.asm_, which makes use of labels, the stack, and a _print_string.asm_ function as well.
 
 ---
 
