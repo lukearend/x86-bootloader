@@ -114,7 +114,12 @@ The statement
 
 will be completely replaced by the contents of the file.
 
-A more sophisticated "hello world" program that ties these things together is _hello_advanced.asm_, which makes use of labels, the stack, and a _print_string.asm_ function as well.
+A more sophisticated "hello world" program that ties these things together is _hello_advanced.asm_, which makes use of labels, the stack, and a _print_string.asm_ function as well. _print_hex.asm_ makes use of the assembly operations `and` and `shr` to convert a register value to a hex string and print to screen. _print_string_example.asm_ demonstrates usage.
+
+Reading the disk
+----------------
+
+
 
 ---
 
