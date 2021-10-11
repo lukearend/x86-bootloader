@@ -28,4 +28,18 @@ print_hex_example: print_hex boot/print_hex_example.asm
 	nasm print_hex_example.asm -f bin -o ../bin/print_hex_example.bin && \
 	qemu-system-x86_64 -drive file=../bin/print_hex_example.bin,format=raw -net none
 
+segment_offset: boot/segment_offset.asm
+	cd boot && \
+	nasm segment_offset.asm -f bin -o ../bin/segment_offset.bin && \
+	qemu-system-x86_64 -drive file=../bin/segment_offset.bin,format=raw -net none
+
+disk_load: boot/disk_load.asm
+	cd boot && \
+	nasm disk_load.asm -f bin -o ../bin/disk_load.bin
+
+disk_load_test: print_hex disk_load boot/disk_load_test.asm
+	cd boot && \
+	nasm disk_load_test.asm -f bin -o ../bin/disk_load_test.bin && \
+	qemu-system-x86_64 -drive file=../bin/disk_load_test.bin,format=raw -net none
+
 .PHONY: all

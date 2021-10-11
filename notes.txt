@@ -26,7 +26,7 @@ The file is padded with zero values to contain 512 bytes in all.
 
 Next, we must emulate the x86 64-bit processor into which this machine code is booted and executed. We can do this using a hardware emulator like QEMU:
 
-    qemu-system-x84_64 miminal.bin
+    qemu-system-x86_64 miminal.bin
 
 The result is that it should launch the boot process and then hang as there is no operating system code to be executed[^2].
 
@@ -119,7 +119,61 @@ A more sophisticated "hello world" program that ties these things together is _h
 Reading the disk
 ----------------
 
+So that we can reach addresses higher than 65535 on a 16-bit CPU, we introduce segments that provide a programmable data offset to the assembler, like the usage of the `[org 0x7c00]`. Segments provide an offset equal to the value they contain times 16 (which is easy to compute through a leftwise bit-shift). For example, setting a segment to 0x7c0 and then getting an address using that segment will offset the address by 0x7c00. It turns out that by default data addresses are offset by the `ds` segment. However we can explicitly use another segment, like the `es` segment, like so: `mov al, [es:my_label]`. See a demonstration of segment usage in _segment_offset.asm_.
 
+#### Spinning disk drives
+
+Locations on the disks are addressed by three physical coordinates:
+
+1. head, which describes which platter and side are to be read from
+2. cylinder, which describes which ring-shaped track of data is to be read from
+3. sector, a 512-byte segment of the track 
+
+#### Reading the disk with BIOS
+
+Though various disk types use different data bus technologies, BIOS abstracts this away and provides several routines to interact with common disk devices.
+
+One such routing is BIOS interrupt 0x13. This requires setting `ah` to 0x02 and several other registers to tell the CPU where to read the data from and to. See the following:
+
+    mov ah, 0x02 ; BIOS read sector function.
+    mov dl, 0    ; Read drive 0 (i.e. first floppy drive).
+    mov ch, 3    ; Select cylinder 3.
+    mov dh, 1    ; Select 2nd side of floppy (this has zero-based indexing)
+    mov cl, 4    ; Select the 4th sector on the track (this has one-based indexing)
+    mov al, 5    ; Read 5 sectors (512-byte chunks) from the start point.
+     
+    ; Set address we want to move data to by writing to `es:bx`. Let's say 0xa1234.
+    mov bx, 0xa000
+    mov es, bx
+    mov bx, 0x1234
+     
+    int 0x13     ; Perform the actual read.
+     
+
+We can evaluate the success of this operation by looking in the carry flag (CF) of the `flags` register. This flag is set to signal a general fault. Furthermore, the number of sectors _actually_ read is stored in `al` after the interrupt. We can check the carry flag using the jump operator `jc`, which only jumps if the carry flag was set:
+
+    int 0x13
+     
+    ; Check carry flag.
+    jc disk_error
+     
+    ; Check that 5 (the expected number) of sectors were read.
+    cmp al, 5
+    jne disk_error
+     
+    disk_error:
+      mov bx, ERROR_MSG
+      call print_string
+      jmp $
+     
+    ERROR_MSG:
+      db 'disk error', 0
+     
+
+We put this all together in the function _disk_load.asm_, which reads the first _n_ sectors following the boot sector from drive `dh` and where _n_ equals `dl`. Then we test this function with _disk_load_test.asm_. Note: could not get this test to run due to _print_string.asm_ seemingly being included multiple times.
+
+32-bit protected mode
+---------------------
 
 ---
 
