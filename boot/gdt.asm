@@ -78,15 +78,15 @@ gdt_end:   ; We label the GDT end for our GDT descriptor as well.
 
 gdt_descriptor:
 
-  ; GDT size   : gdt_end - gdt_start (but, note comment below).
+  ; GDT size   : gdt_end - gdt_start (but see comment below).
   ; GDT address: gdt_start
 
-  dd gdt_start               ; Bytes 0-3: GDT address.
-  dw gdt_end - gdt_start - 1 ; Bytes 4-5: GDT size (always 1 less than true size).
+  dw gdt_end - gdt_start - 1 ; Bytes 2-5: GDT size (always 1 less than true size).
                              ; The GDT may reach a size of 65536 bytes if it has a full 8192
                              ; entries), but an unsigned int can only store 65535. Thus we subtract
                              ; 1 from the true size and the CPU knows the true size is 1 greater
                              ; than the size given in the GDT descriptor.
+  dd gdt_start               ; Bytes 0-1: GDT address.
 
 ; Define some constants for the GDT segment descriptor offsets, which we will use later when
 ; specifying addresses in protected mode. These values are the offset into the GDT at which each

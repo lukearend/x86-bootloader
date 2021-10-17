@@ -2,9 +2,6 @@
 ; A routine for printing a string directly to video memory.
 ;
 
-; This is our first program writing in 32-bit protected mode.
-[bits 32]
-
 VIDEO_MEMORY equ 0xb8000
 WHITE_ON_BLACK equ 0x0f
 

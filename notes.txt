@@ -7,7 +7,7 @@ The BIOS's job is to boot the computer by reading the _boot sector_ into memory.
 
 In memory, these bytes will be written '55 aa' as the x86 is a little-endian system, meaning that multi-byte values are written with the least-significant preceding the most-significant bytes. This magic number will occur at the end of a 512-byte block.
 
-While booting, the BIOS loops through each physical device and finds the one which contains the boot sector. The data in the boot sector is then loaded into memory as the operating system's machine code. We are the ones who create the operating system machine code.
+While booting, the BIOS loops through each physical device and finds the one which contains the boot sector. The data in the boot sector is then loaded into memory as the operating system's ~~machine code~~ bootloader (?). We are the ones who write this bootloader and operating system.
 
 The simplest example of machine code would be a block of 512 bytes which:
 
@@ -17,10 +17,12 @@ The simplest example of machine code would be a block of 512 bytes which:
 
 We can write the following machine code, using a hex editor like Hex Fiend, to the file _miminal.bin_:
 
-    eb fe 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-    ...
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 aa
+```
+eb fe 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+...
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 aa
+```
 
 The file is padded with zero values to contain 512 bytes in all.
 
@@ -58,27 +60,29 @@ We know that the BIOS loads our 512-byte boot sector into some place in memory a
 
 This figure represents the typical layout of lower memory after boot:
 
-                                                
-            |                                  |
-            | free                             |
-    0x100000|----------------------------------|
-            | BIOS (256 kB)                    |
-     0xC0000|----------------------------------|
-            | video memory (128 kB)            |
-     0xA0000|----------------------------------|
-            | extended BIOS data area (639 kB) |
-     0x9fc00|----------------------------------|
-            | free (638 kB)                    |
-      0x7e00|----------------------------------|
-            | loaded boot sector (512 bytes)   |
-      0x7c00|----------------------------------|
-            |                                  |
-       0x500|----------------------------------|
-            | BIOS data area (256 bytes)       |
-       0x400|----------------------------------|
-            | interrupt vector table (1 kB)    |
-         0x0====================================
-     
+```
+
+        |                                  |
+        | free                             |
+0x100000|----------------------------------|
+        | BIOS (256 kB)                    |
+ 0xC0000|----------------------------------|
+        | video memory (128 kB)            |
+ 0xA0000|----------------------------------|
+        | extended BIOS data area (639 kB) |
+ 0x9fc00|----------------------------------|
+        | free (638 kB)                    |
+  0x7e00|----------------------------------|
+        | loaded boot sector (512 bytes)   |
+  0x7c00|----------------------------------|
+        |                                  |
+   0x500|----------------------------------|
+        | BIOS data area (256 bytes)       |
+   0x400|----------------------------------|
+        | interrupt vector table (1 kB)    |
+     0x0====================================
+
+```
 
 An exercise in locating data with these offsets is contained in the assembly code _find_the_byte.asm_.
 
@@ -95,22 +99,22 @@ Several more stack utilities:
 
 So code with a function will look like:
 
-    some_function:
-        pusha        ; Push all registers to the stack.
-        mov bx, 10   ; Do some stuff with registers.
-        add bx, 20
-        mov ah, 0x0e ; Setup BIOS teletype output.
-        int 0x10     ; Print character.
-        popa         ; Pop values from stack back into registers.
-        ret          ; Return to address right after function call that got us here.
-     
+```
+some_function:
+  pusha        ; Push all registers to the stack.
+  mov bx, 10   ; Do some stuff with registers.
+  add bx, 20
+  mov ah, 0x0e ; Setup BIOS teletype output.
+  int 0x10     ; Print character.
+  popa         ; Pop values from stack back into registers.
+  ret          ; Return to address right after function call that got us here.
+```
 
 #### Include files
 
 The statement
 
     %include "my_file.asm"    
-
 
 will be completely replaced by the contents of the file.
 
@@ -127,7 +131,7 @@ Locations on the disks are addressed by three physical coordinates:
 
 1. head, which describes which platter and side are to be read from
 2. cylinder, which describes which ring-shaped track of data is to be read from
-3. sector, a 512-byte segment of the track 
+3. sector, a 512-byte segment of the track
 
 #### Reading the disk with BIOS
 
@@ -135,40 +139,42 @@ Though various disk types use different data bus technologies, BIOS abstracts th
 
 One such routing is BIOS interrupt 0x13. This requires setting `ah` to 0x02 and several other registers to tell the CPU where to read the data from and to. See the following:
 
-    mov ah, 0x02 ; BIOS read sector function.
-    mov dl, 0    ; Read drive 0 (i.e. first floppy drive).
-    mov ch, 3    ; Select cylinder 3.
-    mov dh, 1    ; Select 2nd side of floppy (this has zero-based indexing)
-    mov cl, 4    ; Select the 4th sector on the track (this has one-based indexing)
-    mov al, 5    ; Read 5 sectors (512-byte chunks) from the start point.
-     
-    ; Set address we want to move data to by writing to `es:bx`. Let's say 0xa1234.
-    mov bx, 0xa000
-    mov es, bx
-    mov bx, 0x1234
-     
-    int 0x13     ; Perform the actual read.
-     
+```
+mov ah, 0x02 ; BIOS read sector function.
+mov dl, 0    ; Read drive 0 (i.e. first floppy drive).
+mov ch, 3    ; Select cylinder 3.
+mov dh, 1    ; Select 2nd side of floppy (this has zero-based indexing)
+mov cl, 4    ; Select the 4th sector on the track (this has one-based indexing)
+mov al, 5    ; Read 5 sectors (512-byte chunks) from the start point.
+ 
+; Set address we want to move data to by writing to `es:bx`. Let's say 0xa1234.
+mov bx, 0xa000
+mov es, bx
+mov bx, 0x1234
+ 
+int 0x13     ; Perform the actual read.
+```
 
 We can evaluate the success of this operation by looking in the carry flag (CF) of the `flags` register. This flag is set to signal a general fault. Furthermore, the number of sectors _actually_ read is stored in `al` after the interrupt. We can check the carry flag using the jump operator `jc`, which only jumps if the carry flag was set:
 
-    int 0x13
-     
-    ; Check carry flag.
-    jc disk_error
-     
-    ; Check that 5 (the expected number) of sectors were read.
-    cmp al, 5
-    jne disk_error
-     
-    disk_error:
-      mov bx, ERROR_MSG
-      call print_string
-      jmp $
-     
-    ERROR_MSG:
-      db 'disk error', 0
-     
+```
+int 0x13
+ 
+; Check carry flag.
+jc disk_error
+ 
+; Check that 5 (the expected number) of sectors were read.
+cmp al, 5
+jne disk_error
+ 
+disk_error:
+  mov bx, ERROR_MSG
+  call print_string
+  jmp $
+ 
+ERROR_MSG:
+  db 'disk error', 0
+```
 
 We put this all together in the function _disk_load.asm_, which reads the first _n_ sectors following the boot sector from drive `dh` and where _n_ equals `dl`.
 
@@ -199,12 +205,13 @@ The global descriptor table is an important data structure in memory which is us
 
 An entry in the global descriptor table occupies 8 bytes and looks like this:
 
-      
+```
+
      31        24 23   22   21   20   19             16 15  14  13 12  11   8 7          0
     +------------+---+-----+---+-----+-----------------+---+------+---+------+------------+ byte
     | base 31:24 | G | D/B | L | AVL | seg limit 19:16 | P | DPL  | S | type | base 23:16 |  4
     +------------+---+-----+---+-----+-----------------+---+------+---+------+------------+
-      
+
      31                                   16 15                                    0
     +------------------------------------------+------------------------------------------+ byte
     |            base address 15:00            |            segment limit 15:00           |  0
@@ -212,16 +219,16 @@ An entry in the global descriptor table occupies 8 bytes and looks like this:
     base/limit:
         LIMIT (2 bytes, 4 bits) segment limit
         BASE  (1 byte, 2 bytes) segment base address
-      
+
     1st flags:
         P     (1 bit)           segment present (use 1, indicates segment is present in memory)
         DPL   (2 bits)          descriptor privilege level (00 is highest privilege)
         S     (1 bit)           descriptor type (0=system, 1=code or data)
-      
+
     type flags:
         TYPE  (4 bits)          segment type
             code        (1 bit) 1 (this is a code segment) or 0
-      
+
         [if code segment]
             conforming  (1 bit) 0 (not conforming [protects memory]) or 1 (conforming)
             readable    (1 bit) 1 (readable) or 0 (execute-only)
@@ -230,30 +237,31 @@ An entry in the global descriptor table occupies 8 bytes and looks like this:
             writeable   (1 bit) 1 (writeable) or 0 (read-only)
       
             accessed    (1 bit) 0 (set to 1 once accessed)
-      
+
     2nd flags:
         G     (1 bit)           granularity (left-shift limit by 3)
         D/B   (1 bit)           default operation size (0=16-bit segment, 1=32-bit segment)
         L     (1 bit)           64-bit code segment (IA-32e mode only)
         AVL   (1 bit)           available for user by system software
-      
+
+```
 
 * **segment base address**: this is the offset that this entry describes.
 * **default operation size**: whether segment is to be interpreted as 32-bit or 16-bit code.
 * **descriptor privilege level**: 0 is the highest privilege.
 * **descriptor type**: 1 for code or data segment, 0 is used for traps
 * **type**:
-  * highest bit: _code_: 1 if code segment
-  * next bit: _conforming_: 0 (not conforming) means code in a segment with lower privilege may not call code in this segment, which is key to memory protection.
-  * next bit: _readable_: 1 means readable, 0 means execute-only. Readable allows us to read constants defined in the code.
-  * lowest bit: _accessed_: used for debugging and virtual memory techniques since the CPU sets this bit to 1 when it accesses the segment.
+    * highest bit: _code_: 1 if code segment
+    * next bit: _conforming_: 0 (not conforming) means code in a segment with lower privilege may not call code in this segment, which is key to memory protection.
+    * next bit: _readable_: 1 means readable, 0 means execute-only. Readable allows us to read constants defined in the code.
+    * lowest bit: _accessed_: used for debugging and virtual memory techniques since the CPU sets this bit to 1 when it accesses the segment.
 * **granularity**: if set to 1, limit is left-shifted by 3 (multiplied by 4 K).
 * **64-bit code segment**: set to 0, unused on 32-bit processor.
 * **AVL**: can be used for our purposes (e.g. debugging)
 
 We point the CPU to the GDT through a simple 6-byte structure called the GDT descriptor:
-* higher two byte: GDT size
-* lower four bytes: GDT address
+* first two byte: GDT size
+* next four bytes: GDT address
 
 The preparation of a global descriptor table is shown in _gdt\_.asm_.
 
@@ -265,11 +273,52 @@ The actual switch from 16-bit real to 32-bit protected mode involves the followi
 2. Inform the CPU about the GDT: `lgdt [gdt_descriptor]`.
 3. Make the actual switch over by setting the first bit of the CPU control register `cr0`:
 
-        mov eax, cr0 ; We cannot set a single bit in `cr0` directly, so we store in `eax` and
-        or eax, 0x1  ; leave the top seven bits untouched but set lowest bit to 1, then
-        mov cr0, eax ; put the result back into `cr0` with the updated lowest bit.
+    ```
+    mov eax, cr0 ; We cannot set a single bit in `cr0` directly, so we store in `eax` and
+    or eax, 0x1  ; leave the top seven bits untouched but set lowest bit to 1, then
+    mov cr0, eax ; put the result back into `cr0` with the updated lowest bit.
+    ```
 
-4. Clear the instruction pipeline by issuing a far jump[^3] to
+
+4. Clear the instruction pipeline by issuing a far jump[^3] to the code segment, which we labelled earlier while creating the GDT. Because this is a far jump, the `cs` register is set to the offset of the segment being jumped to. We pass in the offset of the code segment in the GDT and jump to a well-defined label at the start of our 32-bit, protected mode code:
+
+    ```      
+      jmp CODE_SEG:start_protected_mode
+
+    [bits 32]
+
+    start_protected_mode:
+      ...                 ; Here we begin initialization in protected mode.
+    ```
+5. Use the `[bits 32]` directive to tell our assembler that, from this point onwards, it should encode in 32-bit intsructions.
+
+We combine these steps into a reusable switchover routine in _switch_to_pm.asm_. Note that the first thing we do for initialization in protected mode is reset our segment registers to the data segment in our GDT and set up the stack.
+
+We combine everything we have learned thus far into a boot sector that demonstrates the switch from 16-bit real mode into 32-bit protected mode.
+
+## Registers and their usage
+
+From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
+
+```
+
+    32 bits:    EAX   EBX   ECX    EDX
+    16 bits:     AX    BX    CX    DX
+     8 bits:  AH AL BH BL CH CL DH DL
+
+    EAX,AX,AH,AL: Called the **a**ccumulator register. 
+                  Used for I/O port access, arithmetic, interrupt calls, etc...
+
+    EBX,BX,BH,BL: Called the **b**ase register.
+                  Used as a base pointer for memory access, gets some interrupr return values.
+
+    ECX,CX,CH,CL: Called the **c**ounter register
+                  Used as a loop counter and for shifts gets some interrupt values.
+
+    EDX,DX,DH,DL: Called the **d**ata register
+                  Used for I/O port access, arithmetic, some interrupt calls.
+
+```
 
 ---
 

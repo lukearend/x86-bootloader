@@ -50,4 +50,9 @@ gdt: boot/gdt.asm
 	cd boot && \
 	nasm gdt.asm -f bin -o ../bin/gdt.bin
 
+boot_to_pm: print_string gdt print_string_pm boot/switch_to_pm.asm
+	cd boot && \
+	nasm boot_to_pm.asm -f bin -o ../bin/boot_to_pm.bin && \
+	qemu-system-x86_64 -drive file=../bin/boot_to_pm.bin,format=raw -net none
+
 .PHONY: all
