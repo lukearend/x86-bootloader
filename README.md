@@ -1,7 +1,7 @@
 The boot process
 ----------------
 
-We take the BIOS as a given. The BIOS is a set of software functions stored on a chip which is loaded into memory and initialized when the computer is switched on. The BIOS detects and gives basic control of the essential devices (keyboard, screen and hard disks).
+We take the BIOS as a given. The BIOS is a set of software routines stored on a chip which is loaded into memory and initialized when the computer is switched on. The BIOS detects and gives basic control of the essential devices (keyboard, screen and hard disks).
 
 The BIOS's job is to boot the computer by reading the _boot sector_ into memory. The boot sector is a portion of memory (in 512-byte chunks) starting at the very first physical location on the hard disk. The BIOS knows it has reached the end of the boot sector when it encounters the 2-byte magic number 0xaa55.
 
@@ -194,7 +194,7 @@ We put this all together in the function _disk_load.asm_, which reads the first 
 
 ## Printing to screen without BIOS
 
-There is a display device which can be configured into text mode, wherein what is displayed on the screen is a visual representation of a specific range of memory. Specifically, each character cell of the display device is represented by two bytes in memory: the first byte is the ASCII code of the character to display and the second encodes attributes such as colors or blinking. This memory begins at the offset 0xb8000 and is laid out sequentially with 80 characters per row. _print_string_pm\_.asm_ gives an example of printing a string a string by writing directly to video memory.
+There is a display device which can be configured into text mode, wherein what is displayed on the screen is a visual representation of a specific range of memory. Specifically, each character cell of the display device is represented by two bytes in memory: the first byte is the ASCII code of the character to display and the second encodes attributes such as colors or blinking. This memory begins at the offset 0xb8000 and is laid out sequentially with 80 characters per row. _print_string_pm.asm_ gives an example of printing a string a string by writing directly to video memory.
 
 ## The global descriptor table
 
@@ -263,7 +263,7 @@ We point the CPU to the GDT through a simple 6-byte structure called the GDT des
 * first two byte: GDT size
 * next four bytes: GDT address
 
-The preparation of a global descriptor table is shown in _gdt\_.asm_.
+The preparation of a global descriptor table is shown in _gdt.asm_.
 
 ## Switching into 32-bit mode
 
@@ -294,7 +294,7 @@ The actual switch from 16-bit real to 32-bit protected mode involves the followi
 
 We combine these steps into a reusable switchover routine in _switch_to_pm.asm_. Note that the first thing we do for initialization in protected mode is reset our segment registers to the data segment in our GDT and set up the stack.
 
-We combine everything we have learned thus far into a boot sector that demonstrates the switch from 16-bit real mode into 32-bit protected mode.
+We combine everything we have learned thus far into a boot sector that demonstrates the switch from 16-bit real mode into 32-bit protected mode: _boot_to_pm.asm_.
 
 ## Registers and their usage
 
