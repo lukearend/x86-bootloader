@@ -170,10 +170,106 @@ We can evaluate the success of this operation by looking in the carry flag (CF) 
       db 'disk error', 0
      
 
-We put this all together in the function _disk_load.asm_, which reads the first _n_ sectors following the boot sector from drive `dh` and where _n_ equals `dl`. Then we test this function with _disk_load_test.asm_. Note: could not get this test to run due to _print_string.asm_ seemingly being included multiple times.
+We put this all together in the function _disk_load.asm_, which reads the first _n_ sectors following the boot sector from drive `dh` and where _n_ equals `dl`.
 
 32-bit protected mode
 ---------------------
+
+32-bit protected mode is different from 16-bit real mode:
+
+- registers are extended to 32-bits e.g.: `mov ebx, 0274fe8fe`
+- two more general purpose registers `fs`, `gs`
+- 32-bit offsets
+    - offset can reference up to 4 GB of memory (`0xffffffff`)
+- memory segmentation
+    - protect kernel from user applications
+    - virtual memory with page swapping
+- more sophisticated interrupt handling
+
+## Printing to screen without BIOS
+
+There is a display device which can be configured into text mode, wherein what is displayed on the screen is a visual representation of a specific range of memory. Specifically, each character cell of the display device is represented by two bytes in memory: the first byte is the ASCII code of the character to display and the second encodes attributes such as colors or blinking. This memory begins at the offset 0xb8000 and is laid out sequentially with 80 characters per row. _print_string_pm\_.asm_ gives an example of printing a string a string by writing directly to video memory.
+
+## The global descriptor table
+
+The global descriptor table is an important data structure in memory which is used for the protected-mode memory addressing system. In protected mode, a logical address is the combination of a segment register and an offset (i.e. `[es:0x0f`] for the 15th byte 15 of the segment starting at the address stored in `es`). And the way a logical address is mapped to a physical address is different as well. Whereas:
+
+- in 16-bit real mode, the physical address was obtained by multiplying the segment register by 16 and adding the offset,
+- in 32-bit protected mode, the physical address is obtained by indexing into the global descriptor table with the segment register and adding the offset described by that entry.
+
+An entry in the global descriptor table occupies 8 bytes and looks like this:
+
+      
+     31        24 23   22   21   20   19             16 15  14  13 12  11   8 7          0
+    +------------+---+-----+---+-----+-----------------+---+------+---+------+------------+ byte
+    | base 31:24 | G | D/B | L | AVL | seg limit 19:16 | P | DPL  | S | type | base 23:16 |  4
+    +------------+---+-----+---+-----+-----------------+---+------+---+------+------------+
+      
+     31                                   16 15                                    0
+    +------------------------------------------+------------------------------------------+ byte
+    |            base address 15:00            |            segment limit 15:00           |  0
+    +------------------------------------------+------------------------------------------+
+    base/limit:
+        LIMIT (2 bytes, 4 bits) segment limit
+        BASE  (1 byte, 2 bytes) segment base address
+      
+    1st flags:
+        P     (1 bit)           segment present (use 1, indicates segment is present in memory)
+        DPL   (2 bits)          descriptor privilege level (00 is highest privilege)
+        S     (1 bit)           descriptor type (0=system, 1=code or data)
+      
+    type flags:
+        TYPE  (4 bits)          segment type
+            code        (1 bit) 1 (this is a code segment) or 0
+      
+        [if code segment]
+            conforming  (1 bit) 0 (not conforming [protects memory]) or 1 (conforming)
+            readable    (1 bit) 1 (readable) or 0 (execute-only)
+        [if data segment]
+            expand down (1 bit) 1 (allow segment to expand down) or 0
+            writeable   (1 bit) 1 (writeable) or 0 (read-only)
+      
+            accessed    (1 bit) 0 (set to 1 once accessed)
+      
+    2nd flags:
+        G     (1 bit)           granularity (left-shift limit by 3)
+        D/B   (1 bit)           default operation size (0=16-bit segment, 1=32-bit segment)
+        L     (1 bit)           64-bit code segment (IA-32e mode only)
+        AVL   (1 bit)           available for user by system software
+      
+
+* **segment base address**: this is the offset that this entry describes.
+* **default operation size**: whether segment is to be interpreted as 32-bit or 16-bit code.
+* **descriptor privilege level**: 0 is the highest privilege.
+* **descriptor type**: 1 for code or data segment, 0 is used for traps
+* **type**:
+  * highest bit: _code_: 1 if code segment
+  * next bit: _conforming_: 0 (not conforming) means code in a segment with lower privilege may not call code in this segment, which is key to memory protection.
+  * next bit: _readable_: 1 means readable, 0 means execute-only. Readable allows us to read constants defined in the code.
+  * lowest bit: _accessed_: used for debugging and virtual memory techniques since the CPU sets this bit to 1 when it accesses the segment.
+* **granularity**: if set to 1, limit is left-shifted by 3 (multiplied by 4 K).
+* **64-bit code segment**: set to 0, unused on 32-bit processor.
+* **AVL**: can be used for our purposes (e.g. debugging)
+
+We point the CPU to the GDT through a simple 6-byte structure called the GDT descriptor:
+* higher two byte: GDT size
+* lower four bytes: GDT address
+
+The preparation of a global descriptor table is shown in _gdt\_.asm_.
+
+## Switching into 32-bit mode
+
+The actual switch from 16-bit real to 32-bit protected mode involves the following steps:
+
+1. Clear interrupts: `cli`. This is important to avoid attempting to use the IVT that BIOS set up at the start of memory.
+2. Inform the CPU about the GDT: `lgdt [gdt_descriptor]`.
+3. Make the actual switch over by setting the first bit of the CPU control register `cr0`:
+
+        mov eax, cr0 ; We cannot set a single bit in `cr0` directly, so we store in `eax` and
+        or eax, 0x1  ; leave the top seven bits untouched but set lowest bit to 1, then
+        mov cr0, eax ; put the result back into `cr0` with the updated lowest bit.
+
+4. Clear the instruction pipeline by issuing a far jump[^3] to
 
 ---
 
@@ -188,3 +284,5 @@ Dependencies
 [^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
 
 [^2]: If you change the magic numbers at the end of the file and try again, the BIOS should crash saying "no bootable device".
+
+[^3]: To issue a far jump, as opposed to a near (standard) jump, we additionally provide the target segment: `jmp <segment>:<address offset>`.

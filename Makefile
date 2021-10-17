@@ -14,6 +14,11 @@ print_string: boot/print_string.asm
 	cd boot && \
 	nasm print_string.asm -f bin -o ../bin/print_string.bin
 
+hello_simple:
+	cd boot && \
+	nasm hello_simple.asm -f bin -o ../bin/hello_simple.bin && \
+	qemu-system-x86_64 -drive file=../bin/hello_simple.bin,format=raw -net none
+
 hello_advanced: print_string boot/hello_advanced.asm
 	cd boot && \
 	nasm hello_advanced.asm -f bin -o ../bin/hello_advanced.bin && \
@@ -37,9 +42,12 @@ disk_load: boot/disk_load.asm
 	cd boot && \
 	nasm disk_load.asm -f bin -o ../bin/disk_load.bin
 
-disk_load_test: print_hex disk_load boot/disk_load_test.asm
+print_string_pm: boot/print_string_pm.asm
 	cd boot && \
-	nasm disk_load_test.asm -f bin -o ../bin/disk_load_test.bin && \
-	qemu-system-x86_64 -drive file=../bin/disk_load_test.bin,format=raw -net none
+	nasm print_string_pm.asm -f bin -o ../bin/print_string_pm.bin
+
+gdt: boot/gdt.asm
+	cd boot && \
+	nasm gdt.asm -f bin -o ../bin/gdt.bin
 
 .PHONY: all
