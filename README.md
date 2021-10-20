@@ -93,7 +93,7 @@ The CPU also has an important functionality called the _stack_. The stack is a w
 Several more stack utilities:
 
  - `call`: stores the return address (address after current one) on the stack and then jumps to function
- - `ret`: used at the end of the function, pops top value (return address) the stack and jumps to it
+ - `ret`: used at the end of the function, pops top value (return address) off the stack and jumps to it
  - `pusha`: used at the beginning of a function, pushes all registers to the stack to avoid overwriting data they contained if function uses those registers
  - `popa`: used at the end of a function, pops top values from the stack back into the registers
 
@@ -310,7 +310,7 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
                   Used for I/O port access, arithmetic, interrupt calls, etc...
 
     EBX,BX,BH,BL: Called the **b**ase register.
-                  Used as a base pointer for memory access, gets some interrupr return values.
+                  Used as a base pointer for memory access, gets some interrupt return values.
 
     ECX,CX,CH,CL: Called the **c**ounter register
                   Used as a loop counter and for shifts gets some interrupt values.
@@ -320,15 +320,284 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 
 ```
 
+Experiments in C compilation
+----------------------------
+
+We will be writing our kernel in C and compiling it to machine code. At boot, our boot sector will be loaded into memory and executed to read in the kernel code. In preparation for writing the kernel, we will study C compilation, the process by which C source code is converted to assembly code.
+
+Consider the following C code in the file `basic.c`:
+
+```
+// Define an empty function that returns an integer
+int my_function() {
+    return 0xbaba;
+}
+
+```
+
+We can compile the code to the file `basic.o` using gcc:
+
+    x86_64-elf-gcc -m32 -ffreestanding -c basic.c -o basic.o
+
+and then disassemble it using `objdump`:
+
+    objdump -d basic.o
+
+The output of `objdump` is the following:
+
+```
+basic.o:    file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <my_function>:
+       0: 55                            pushl   %ebp
+       1: 89 e5                         movl    %esp, %ebp
+       3: b8 ba ba 00 00                movl    $47802, %eax
+       8: 5d                            popl    %ebp
+       9: c3                            retl
+```
+
+We can make that a bit friendlier by translating to NASM and commenting:
+
+```
+basic.o: 32-bit i386
+
+Machine code:               Assembly:          
+00000000 <_my_function>:    my_function:
+0: 55                         push bp         ; Preserve current frame pointer in case we call
+                                              ; another function inside this one. That way we can
+                                              ; reset the frame pointer to its value before calling
+                                              ; this function at the end of our function code.
+1: 89 e5                      mov bp, sp      ; Create new pointer to current stack top, so that we
+                                              ; can use the stack for our own purposes during this
+                                              ; function.
+3: b8 ba ba 00 00             mov eax, 0xbaba ; Move return value into A register, which is the
+                                              ; register expected to hold the return value when  
+                                              ; flow of control exits this function.
+8: 5d                         pop bp          ; Replace stack pointer with what it was before the
+                                              ; call to this function. That way we return to the
+                                              ; context we had before this function was called.
+9: c3                         ret             ; Pop return address off the stack and jump back to
+                                              ; the address from which this routine was called.
+```
+
+To implement functions on top of assembly routines, we introduce the concept of a frame. For noew it suffices to know that a frame is a stack pointer associated to a call to a function in context. When a function is called, the start address of its caller's frame is pushed onto the stack. Upon starting, the function sets up its own stack frame at the top of the stack of its caller. Once the function returns, the top value on the stack is popped to the `ebp` register. This is the equivalent of saying the new current frame has a stack back at address `ebp`, the caller's frame.
+
+The object files output by the compiler contain the raw machine code plus some annotation. This annotation associates label to their relative addresses and is there to be used by the _linker_. During compilation, the linker stitches together the machine code from the object files into one executable binary. When writing this binary, it substitutes labels for absolute addresses using the object file annotations.
+
+To use the linker to create an executable using the object file above, run:
+
+    x86_64-elf-ld -melf_i386 -o basic.bin -Ttext 0x0 --oformat binary basic.o
+
+* `-melf_i386` sets e**m**ulation to `elf_i386`, the original 32-bit x86 architecture.
+* `-o basic.bin` specifies the output file as `basic.bin`,
+* `-Ttext 0x0` says to offset all addresses in the binary relative to 0x0. This option is important when writing our kernel later, as the kernel is loaded to some known location in memory and we must offset addresses relative to it.
+* `--oformat binary` specifies the output format as binary (leaving no metadata in the machine code).
+* `basic.o` is an input argument, the file to be linked.
+
+Now let us dissassemble this binary using a NASM dissassembler:
+
+    ndisasm -b 32 basic.bin
+
+The result is:
+
+```
+00000000  55                push ebp
+00000001  89E5              mov ebp,esp
+00000003  B8BABA0000        mov eax,0xbaba
+00000008  5D                pop ebp
+00000009  C3                ret
+```
+
+This is essentially the same as our "nice" version of the dissassembly output from `objdump`. The left-hand column shows the file offsets of the instructions. The middle columns shows the machine code as one or multiple bytes. The right column shows the NASM assembly instruction GCC generated.
+
+Now we can write some C code declaring a local variable and compile, link and disassemble it as before. We write the following to _local_var.c_:
+
+```
+// Declare a local variable.
+int my_function() {
+    int my_var = 0xbaba;
+    return my_var;
+}
+```
+
+And then run:
+
+    x86_64-elf-gcc -m32 -ffreestanding -c local_var.c -o local_var.o
+    x86_64-elf-ld -melf_i386 -o local_var.bin -Ttext 0x0 --oformat binary local_var.o
+    ndisasm -b 32 local_var.bin
+
+We get the following output:
+
+```
+00000000  55                push ebp
+00000001  89E5              mov ebp,esp
+00000003  83EC10            sub esp,byte +0x10
+00000006  C745FCBABA0000    mov dword [ebp-0x4],0xbaba
+0000000D  8B45FC            mov eax,[ebp-0x4]
+00000010  C9                leave
+00000011  C3                ret
+```
+
+Let's walk through this line by line:
+
+* `00`: First we push `ebp` to the stack, storing the frame pointer of the caller's stack frame.
+* `01`: Next, we set the stack base to the current top of the stack, in order to use the stack for the current function.
+* `03`: reserves 16 (0x10) bytes on the stack for local use. This is enough for one variable of whatever size it may be, though we will only use the first four bytes to store the 32-bit `int`.
+* `06`: store the double-word value 0xbaba at the address `ebp` - 4, filling up the 4 bytes at the base of this function's stack. Here we use a CPU shortcut called _effective address manipulation_, where the CPU calculates the specified offset of 0x4 on-the-fly from the value in `ebp` (which is only known at runtime). `dword` states explicitly that we are storing a double word (4 bytes) on the stack, 0x0000baba (not a single word, 0xbaba or four words 0x000000000baba).
+* `0D`: load the value 0xbaba (at the address `ebp` - 4) into the A register.
+* `10`: `leave` is equivalent to:
+
+    ```
+    mov esp, ebp    ; Put the stack back to how it was before calling this function. This is the
+    pop ebp         ; reciprocal of the first two lines of this function.
+    ```
+
+    - Line 1 of `leave` says the new top of the stack is ebp, or the value at the bottom of the stack from of the function that is exiting. It should be fine to overwrite any memory there because anything above it is leftover values on the stack 
+
+* `11`: pop return address off the stack and jump (back) to it.
+
+Throughout all of this, what we think of as `my_var` is tracked by the compiler as `ebp - 0x4`, i.e., the first four bytes of the stack. The compiler stores the return value `my_var` in A register knowing this is interpreted as `my_var`'s return value.
+
+## Calling functions
+
+Now see the following code featuring one function which calls another:
+
+```
+void callee_function(int my_arg) {
+    return my_arg;
+}
+
+void caller_function() {
+    callee_function(0xdede);
+}
+```
+
+Compilation/linking and dissasembly gives:
+
+```
+00000000  55                push ebp          ; callee start
+00000001  89E5              mov ebp,esp
+00000003  8B4508            mov eax,[ebp+0x8]
+00000006  5D                pop ebp
+00000007  C3                ret               ; callee end
+00000008  55                push ebp          ; caller start
+00000009  89E5              mov ebp,esp
+0000000B  68DEDE0000        push dword 0xdede
+00000010  E8EBFFFFFF        call 0x0
+00000015  83C404            add esp,byte +0x4
+00000018  90                nop
+00000019  C9                leave
+0000001A  C3                ret               ; caller end
+```
+
+It's useful to start with the caller function.
+
+* `08` and `09` are the familiar function prolog.
+* `0B` pushes double-word 0xdede to the stack as an argument to the function about to be called.
+* `10`: we call the function starting at 0x0, the callee.
+* `00` and `01` are the familiar function prolog.
+* `03` copies the four bytes from ebp+0x8:ebp+0x4 into the A register. Here we are actually reaching up into the callee's stack frame to get the argument's value. The callee's address occupies bytes 0x4:0x0 on the stack and the argument occupies 0x8:0x4. By convention in C, when calling arguments are pushed to the stack in reverse order, so the first argument is on the top. The A register is where the `int` return value for this function is supposed to be stored.
+* `06` return stack base to the stack frame of the caller by grabbing it off the stack.
+* `07` pop caller address off the stack and jump back to it to return flow of control.
+
+## Pointers, addresses and data
+
+A variable is simply a reference to an allocated memory address, where sufficient space has been reserved to accomodate a particular data type.
+
+Consider the following C code:
+
+```
+def my_function() {
+    int a = 3;
+    int b = 4;
+    int total = a + b;
+}
+```
+
+How would this look in assembly?
+
+* Prolog
+
+        push bp             ; Prolog
+        mov bp, sp
+
+    * The stack now looks like
+
+        0x10== . . . ==0x06====0x04====0x02====0x0 <- bp, sp
+
+
+* `int a = 3` becomes
+    
+        sub sp, 0x10        ; Allocate 16 bytes on the stack for int a.
+        push dword 3        ; Load the number 3 as a double word, or 32-bit integer (0x00000003) 
+
+    * The stack now looks like
+
+        0x10== . . . ==0x04====0x03====0x02====0x01====0x0  <- bp
+        |              |  0x03 |  0x00 |  0x00 |  0x00 |
+        0x20-- . . . --0x14----0x13----0x12----0x11----0x10 <- sp
+
+* `int b = 4` becomes
+
+        sub sp, 0x10        ; Allocate 16 bytes on the stack for int b.
+        push dword 4        ; Load the number 4 as a double word.
+
+    * The stack now looks like
+
+        0x10== . . . ==0x04====0x03====0x02====0x01====0x0  <- bp
+        |              |  0x03 |  0x00 |  0x00 |  0x00 |
+        0x20-- . . . --0x14----0x13----0x12----0x11----0x10
+        |              |  0x04 |  0x00 |  0x00 |  0x00 |
+        0x30-- . . . --0x24----0x23----0x22----0x21----0x20 <- sp
+
+* `int total = a + b` becomes
+
+        mov ebx, [bp + 0x04]    ; LSB of 32-bit double word at base of stack
+        add ebx, [bp + 0x14]    ; LSB of 32-bit double word at second position on stack
+        sub sp, 0x10            ; Allocate 16 bytes on the stack for int `total`.
+        push dword ebx
+
+    * The stack is then
+
+        0x10== . . . ==0x04====0x03====0x02====0x01====0x0  <- bp
+        |              |  0x03 |  0x00 |  0x00 |  0x00 |
+        0x20-- . . . --0x14----0x13----0x12----0x11----0x10
+        |              |  0x04 |  0x00 |  0x00 |  0x00 |
+        0x30-- . . . --0x24----0x23----0x22----0x21----0x20
+        |              |  0x07 |  0x00 |  0x00 |  0x00 |
+        0x40-- . . . --0x34----0x33----0x32----0x31----0x30 <- sp
+
+* To return, we might set the return value (A register) to `total`:
+
+        mov eax, [bp + 0x24]
+        leave
+        ret
+
+Function setup and teardown aside, note how memory is managed for us by the stack; that is, we do not have to worry about the addresses of `a` and `b` when allocating space for them and writing data to those addresses. But suppose, in the course of our C programming, we want to store a value at an explicitly provided location in memory? Or how about if we want to read the value at a specific location in memory? For this, we introduce the concept of a _pointer_. A pointer is a special type of variable which holds a reference to the storage address for an object of some specified type. We can write to location 0xb8000 directly by creating a pointer to the address 0xb8000 called, say, `ptr`, and issuing a command to "write to the address referred to by `ptr`". The "address referred to by `ptr`" is represented by `*ptr`, where `*` is an operator that can be used on a pointer variable to directly access the value to which it refers. This operation is called _dereferencing_ and `*` is called the _dereference operator_.
+
+For instance, knowing the first character of video memory maps onto the address 0xb8000, we could print an 'X' to line 1, col 1 in the following way:
+
+    char video_address = 0xb8000 ; Declare a pointer to an integer stored at address 0xb8000.
+    *video_address = 'X'         ; Assign ASCII value 'X' to the integer at address 0xb8000.
+
+The concept of dereferencing should feel familiar because the syntax `[ax]` from assembly code essentially dereferences a register; that is, it refers to the value stored at the address in `ax`. In this context, `ax` is being used as a pointer rather than as a data container in itself. On a 32-bit operating system, all pointers (no matter what type they point to) will be 32-bits. This is because 32-bit numbers are used to specify addresses.
+
 ---
 
-Dependencies
-------------
+## Dependencies
 - MacOSX: host operating system, runs QEmu and editors.
 - Hex Fiend: hex editor, used to write and read raw binaries.
 - QEmu: x86 emulator, emulates a 64-bit x86 processor.
 - nasm: x86 assembler, assembles bytecode for an x86 processor.
 - Make: compilation tool, automates build process.
+- `x86_64-elf-gcc`, `x86_64-elf-ld` (`brew install i386-elf-binutils i386-elf-gcc`): binary utilities and GCC compiler for x86, cross-compiled for M1 Mac.
+
+## Routines vs. functions
+* _routine_: assembly code, compiled to machine code, labeled by address, parametrized by registers.
+* _function_: C code: offset by compiler annotation, parametrized by contents of the stack.
 
 [^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
 

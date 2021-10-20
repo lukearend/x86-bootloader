@@ -55,4 +55,22 @@ boot_to_pm: print_string gdt print_string_pm boot/switch_to_pm.asm
 	nasm boot_to_pm.asm -f bin -o ../bin/boot_to_pm.bin && \
 	qemu-system-x86_64 -drive file=../bin/boot_to_pm.bin,format=raw -net none
 
+basic: kernel/basic.c
+	cd kernel && \
+	x86_64-elf-gcc -m32 -ffreestanding -c basic.c -o basic.o && \
+	x86_64-elf-ld -melf_i386 -o basic.bin -Ttext 0x0 --oformat binary basic.o && \
+	ndisasm -b 32 basic.bin
+
+local_var: kernel/local_var.c
+	cd kernel && \
+	x86_64-elf-gcc -m32 -ffreestanding -c local_var.c -o local_var.o && \
+	x86_64-elf-ld -melf_i386 -o local_var.bin -Ttext 0x0 --oformat binary local_var.o && \
+	ndisasm -b 32 local_var.bin
+
+calling: kernel/calling.c
+	cd kernel && \
+	x86_64-elf-gcc -m32 -ffreestanding -c calling.c -o calling.o && \
+	x86_64-elf-ld -melf_i386 -o calling.bin -Ttext 0x0 --oformat binary calling.o && \
+	ndisasm -b 32 calling.bin
+
 .PHONY: all
