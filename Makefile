@@ -73,4 +73,10 @@ calling: kernel/calling.c
 	x86_64-elf-ld -melf_i386 -o calling.bin -Ttext 0x0 --oformat binary calling.o && \
 	ndisasm -b 32 calling.bin
 
+string: kernel/string.c
+	cd kernel && \
+	x86_64-elf-gcc -m32 -ffreestanding -c string.c -o string.o && \
+	x86_64-elf-ld -melf_i386 -o string.bin -Ttext 0x0 --oformat binary string.o && \
+	ndisasm -b 32 string.bin
+
 .PHONY: all

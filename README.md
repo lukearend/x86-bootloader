@@ -192,11 +192,11 @@ We put this all together in the function _disk_load.asm_, which reads the first 
     - virtual memory with page swapping
 - more sophisticated interrupt handling
 
-## Printing to screen without BIOS
+#### Printing to screen without BIOS
 
 There is a display device which can be configured into text mode, wherein what is displayed on the screen is a visual representation of a specific range of memory. Specifically, each character cell of the display device is represented by two bytes in memory: the first byte is the ASCII code of the character to display and the second encodes attributes such as colors or blinking. This memory begins at the offset 0xb8000 and is laid out sequentially with 80 characters per row. _print_string_pm.asm_ gives an example of printing a string a string by writing directly to video memory.
 
-## The global descriptor table
+#### The global descriptor table
 
 The global descriptor table is an important data structure in memory which is used for the protected-mode memory addressing system. In protected mode, a logical address is the combination of a segment register and an offset (i.e. `[es:0x0f`] for the 15th byte 15 of the segment starting at the address stored in `es`). And the way a logical address is mapped to a physical address is different as well. Whereas:
 
@@ -265,7 +265,7 @@ We point the CPU to the GDT through a simple 6-byte structure called the GDT des
 
 The preparation of a global descriptor table is shown in _gdt.asm_.
 
-## Switching into 32-bit mode
+#### Switching into 32-bit mode
 
 The actual switch from 16-bit real to 32-bit protected mode involves the following steps:
 
@@ -296,32 +296,8 @@ We combine these steps into a reusable switchover routine in _switch_to_pm.asm_.
 
 We combine everything we have learned thus far into a boot sector that demonstrates the switch from 16-bit real mode into 32-bit protected mode: _boot_to_pm.asm_.
 
-## Registers and their usage
-
-From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
-
-```
-
-    32 bits:    EAX   EBX   ECX    EDX
-    16 bits:     AX    BX    CX    DX
-     8 bits:  AH AL BH BL CH CL DH DL
-
-    EAX,AX,AH,AL: Called the **a**ccumulator register. 
-                  Used for I/O port access, arithmetic, interrupt calls, etc...
-
-    EBX,BX,BH,BL: Called the **b**ase register.
-                  Used as a base pointer for memory access, gets some interrupt return values.
-
-    ECX,CX,CH,CL: Called the **c**ounter register
-                  Used as a loop counter and for shifts gets some interrupt values.
-
-    EDX,DX,DH,DL: Called the **d**ata register
-                  Used for I/O port access, arithmetic, some interrupt calls.
-
-```
-
-Experiments in C compilation
-----------------------------
+C compilation
+-------------
 
 We will be writing our kernel in C and compiling it to machine code. At boot, our boot sector will be loaded into memory and executed to read in the kernel code. In preparation for writing the kernel, we will study C compilation, the process by which C source code is converted to assembly code.
 
@@ -461,7 +437,7 @@ Let's walk through this line by line:
 
 Throughout all of this, what we think of as `my_var` is tracked by the compiler as `ebp - 0x4`, i.e., the first four bytes of the stack. The compiler stores the return value `my_var` in A register knowing this is interpreted as `my_var`'s return value.
 
-## Calling functions
+#### Calling functions
 
 Now see the following code featuring one function which calls another:
 
@@ -503,7 +479,7 @@ It's useful to start with the caller function.
 * `06` return stack base to the stack frame of the caller by grabbing it off the stack.
 * `07` pop caller address off the stack and jump back to it to return flow of control.
 
-## Pointers, addresses and data
+#### Local variables in the stack
 
 A variable is simply a reference to an allocated memory address, where sufficient space has been reserved to accomodate a particular data type.
 
@@ -517,66 +493,94 @@ def my_function() {
 }
 ```
 
-How would this look in assembly?
+How would this look in assembly? First we encounter the function definition, so we start a new assembly routine with the basic function prolog. This sets up a "local" stack for the context of this function and takes note of the caller's stack so the caller's context can be restored upon return.
 
-* Prolog
+```
+def my_function() -> MY_FUNCTION:
+{                 ->   push ebp     ; Function prolog...
+                       mov ebp, esp ; Let's say sp happened to be `0x40` before this function call.
+```
 
-        push bp             ; Prolog
-        mov bp, sp
+The local stack is at this point just a flat base, though the top of the caller's stack is in fact just below it. The top of the caller's stack will include the parameters the caller passed as arguments to this function.
 
-    * The stack now looks like
+```
 
-        0x10== . . . ==0x06====0x04====0x02====0x0 <- bp, sp
+     (this function's stack)
 
+0x30====0x31== . . . ==0x3f====0x40 <- bp, sp
+|                              |
+|       (caller's stack)       |
+```
 
-* `int a = 3` becomes
-    
-        sub sp, 0x10        ; Allocate 16 bytes on the stack for int a.
-        push dword 3        ; Load the number 3 as a double word, or 32-bit integer (0x00000003) 
+Next, we declare an integer `a` whose value is 3.
 
-    * The stack now looks like
+```
+int a = 3; -> sub esp, 0x10 ; Allocate 16 bytes on the stack for int a.
+              push dword [ebp-0x4], 3 ; Load 3 as a double-word at the base of the stack.
+```
 
-        0x10== . . . ==0x04====0x03====0x02====0x01====0x0  <- bp
-        |              |  0x03 |  0x00 |  0x00 |  0x00 |
-        0x20-- . . . --0x14----0x13----0x12----0x11----0x10 <- sp
+The stack now contains the 32-bit value `a` in the four bytes at its base.
+           
+```
 
-* `int b = 4` becomes
+0x20-- . . . --0x2c----0x2d----0x2e----0x2f----0x30 <- sp
+|              |  0x03 |  0x00 |  0x00 |  0x00 |
+0x30== . . . ==0x3c====0x3d====0x3e====0x3f====0x40 <- bp
 
-        sub sp, 0x10        ; Allocate 16 bytes on the stack for int b.
-        push dword 4        ; Load the number 4 as a double word.
+```
 
-    * The stack now looks like
+We declare an integer `b` whose value is 4.
 
-        0x10== . . . ==0x04====0x03====0x02====0x01====0x0  <- bp
-        |              |  0x03 |  0x00 |  0x00 |  0x00 |
-        0x20-- . . . --0x14----0x13----0x12----0x11----0x10
-        |              |  0x04 |  0x00 |  0x00 |  0x00 |
-        0x30-- . . . --0x24----0x23----0x22----0x21----0x20 <- sp
+```
+int b = 4; -> sub esp, 0x10            ; Allocate 16 bytes on the stack for int b.
+              push dword [ebp-0x14], 4 ; Load 4 as a double-word at second "slot" in the stack.
+```
 
-* `int total = a + b` becomes
+The stack now also contains the 32-bit value `b` in the lowest four bytes of its second slot.
+           
+```
 
-        mov ebx, [bp + 0x04]    ; LSB of 32-bit double word at base of stack
-        add ebx, [bp + 0x14]    ; LSB of 32-bit double word at second position on stack
-        sub sp, 0x10            ; Allocate 16 bytes on the stack for int `total`.
-        push dword ebx
+0x10-- . . . --0x1c----0x1d----0x1e----0x1f----0x20 <- sp
+|              |  0x04 |  0x00 |  0x00 |  0x00 |
+0x20-- . . . --0x2c----0x2d----0x2e----0x2f----0x30
+|              |  0x03 |  0x00 |  0x00 |  0x00 |
+0x30== . . . ==0x3c====0x3d====0x3e====0x3f====0x40 <- bp
 
-    * The stack is then
+```
 
-        0x10== . . . ==0x04====0x03====0x02====0x01====0x0  <- bp
-        |              |  0x03 |  0x00 |  0x00 |  0x00 |
-        0x20-- . . . --0x14----0x13----0x12----0x11----0x10
-        |              |  0x04 |  0x00 |  0x00 |  0x00 |
-        0x30-- . . . --0x24----0x23----0x22----0x21----0x20
-        |              |  0x07 |  0x00 |  0x00 |  0x00 |
-        0x40-- . . . --0x34----0x33----0x32----0x31----0x30 <- sp
+Next, we declare an integer `total` whose value is `a` and `b` added together.
 
-* To return, we might set the return value (A register) to `total`:
+```
+int total = a + b; -> mov eax, [ebp-0x4]  ; Move `a` into A register to perform sum.
+                      add eax, [ebp-0x14] ; Add `b` to `a`, with result in A register.
+                      sub esp, 0x10       ; Allocate 16-bytes on stack for int `total`.
+                      mov [ebp-0x24], eax ; Store result of sum as dword in `total`'s slot in stack.
+```
 
-        mov eax, [bp + 0x24]
-        leave
-        ret
+The stack now contains all three variables.
 
-Function setup and teardown aside, note how memory is managed for us by the stack; that is, we do not have to worry about the addresses of `a` and `b` when allocating space for them and writing data to those addresses. But suppose, in the course of our C programming, we want to store a value at an explicitly provided location in memory? Or how about if we want to read the value at a specific location in memory? For this, we introduce the concept of a _pointer_. A pointer is a special type of variable which holds a reference to the storage address for an object of some specified type. We can write to location 0xb8000 directly by creating a pointer to the address 0xb8000 called, say, `ptr`, and issuing a command to "write to the address referred to by `ptr`". The "address referred to by `ptr`" is represented by `*ptr`, where `*` is an operator that can be used on a pointer variable to directly access the value to which it refers. This operation is called _dereferencing_ and `*` is called the _dereference operator_.
+```
+0x00-- . . . --0x0c----0x0d----0x0e----0x0f----0x10 <- sp
+|              |  0x07 |  0x00 |  0x00 |  0x00 |
+0x10-- . . . --0x1c----0x1d----0x1e----0x1f----0x20
+|              |  0x04 |  0x00 |  0x00 |  0x00 |
+0x20-- . . . --0x2c----0x2d----0x2e----0x2f----0x30
+|              |  0x03 |  0x00 |  0x00 |  0x00 |
+0x30-- . . . --0x3c----0x3d----0x3e----0x3f----0x40 <- bp
+
+```
+
+Lastly we store the return value in the A register, tear down the stack, and return to the caller.
+
+```
+return total; -> mov eax, [ebp-0x24] ; Set `a` as return value by writing to A register.
+}             -> leave               ; Teardown local stack and re-setup caller's.
+                 ret                 ; Jump back to the code for this function's caller.
+```
+
+#### Pointers, addresses and data
+
+Note how, in C, memory is managed for us by the stack; that is, we don't have to worry about the addresses of `a` and `b` when allocating space and writing to those addresses. But suppose, in the course of our C programming, we want to store a value at an explicitly provided location in memory? Or how about if we want to read the value at a specific location in memory? For this, we introduce the concept of a _pointer_. A pointer is a special type of variable which holds a reference to the storage address for an object of some specified type. We can write to location 0xb8000 directly by creating a pointer to the address 0xb8000 called, say, `ptr`, and issuing a command to "write to the address referred to by `ptr`". The "address referred to by `ptr`" is represented by `*ptr`, where `*` is an operator that can be used on a pointer variable to directly access the value to which it refers. This operation is called _dereferencing_ and `*` is called the _dereference operator_.
 
 For instance, knowing the first character of video memory maps onto the address 0xb8000, we could print an 'X' to line 1, col 1 in the following way:
 
@@ -585,9 +589,86 @@ For instance, knowing the first character of video memory maps onto the address 
 
 The concept of dereferencing should feel familiar because the syntax `[ax]` from assembly code essentially dereferences a register; that is, it refers to the value stored at the address in `ax`. In this context, `ax` is being used as a pointer rather than as a data container in itself. On a 32-bit operating system, all pointers (no matter what type they point to) will be 32-bits. This is because 32-bit numbers are used to specify addresses.
 
+In contrast to dereferencing one can use the _address-of_ operator, `&`. This operator may be applied to any variable and will return the address of that variable in memory. The `*` and `&` operators are related to each other such that for variables x and y, the following equations are always true:
+
+```
+*(&x) == x
+&(*y) == y
+```
+
+#### Representing strings
+
+We can now see a good way to represent strings in memory. We can represent the start of the string with a pointer its first letter stored in memory: type `char*`. This declaration creates a variable holding the address in memory of a `char`, or unsigned 8-bit value (often taken to be an ASCII character code). The string then expected to be stored as a series of `char` values, arranged contiguously in memory beginning at the start address.
+
+Let's see how a compiler treats a string variable in C (_my_string.c_):
+
+```
+void my_function() {
+    char* my_string = "Hello";
+}
+```
+
+When we declare the variable `my_string` of type `char*`, the compiler understands that the value which follows will be a string of `char`, that is a sequence of bytes to be interpreted as ASCII characters. So it will then look up the ASCII codes for the characters provided:
+
+```
+'H': 0x48
+'e': 0x65
+'l': 0x6c
+'l': 0x6c
+'o': 0x6f
+```
+
+It will call a function (starting its own new stack on top of the stack), allocate space on its stack to store this string, and store the characters in order that space. Let's write out what this might look like in assembly, and then compare it with the disassembled binary from the C compiler.
+
+```
+push ebp                       ; Store stack base of previous context.
+mov ebp, esp                   ; Set new stack base to top of previous context's stack.
+sub esp, 0x10                  ; Allocate 16 bytes on the stack for our variable.
+mov dword [ebp-0x4], MY_STRING ; Store the start address to our string as a 32-bt int (double word)
+                               ; in the first four bytes of the stack.
+leave                          ; Teardown local stack (mov esp, ebp; pop ebp).
+ret                            ; jmp back to where this function was called.
+
+MY_STRING:                     : Assembler converts this symbol into offset of "H" byte.
+  db "Hello", 0x0              ; Null-terminated string of contiguous bytes.
+```
+
+Here is what the compiled binary looks like, dissassembled:
+
+```
+00000000  55                push ebp
+00000001  89E5              mov ebp,esp
+00000003  83EC10            sub esp,byte +0x10
+00000006  C745FC10000000    mov dword [ebp-0x4],0x10
+0000000D  90                nop
+0000000E  C9                leave
+0000000F  C3                ret
+00000010  48                dec eax
+00000011  656C              gs insb
+00000013  6C                insb
+00000014  6F                outsd
+00000015  00                db 0x00
+```
+
+The first few lines make sense, though we notice that MY_STRING has been replaced with the absolute offset 0x10. Now, at offset 0x10 in this machine code, things get funky: the CPU sends off a seemingly random series of commands.
+
+The reason is for this is that the disassembler cannot distinguish between code and data when interpreting the machine code it encounters. If we instead look at bytes 0x10-0x15 as data (ASCII values rather than assembly commands), we see that these values are the ASCII characters for `my_string`, terminated by the null byte 0x0. The offset 0x10 stored at the base of the stack is our `char* my_string`: its assembly label is MY_STRING, and it points to the first character of `my_string` in memory.
+
+A simple kernel in C
+--------------------
+
+We now have all we need to boot and execute the simplest of kernels in C:
+
+1. Write and compile kernel code.
+2. Write and assemble boot sector code.
+3. Create a kernel image that concatenates boot sector with compiled kernel code.
+4. Load our kernel code into memory.
+5. Switch to 32-bit protected mode.
+6. Begin executing our kernel code from start of where we loaded it into memory.
+
 ---
 
-## Dependencies
+#### Dependencies
 - MacOSX: host operating system, runs QEmu and editors.
 - Hex Fiend: hex editor, used to write and read raw binaries.
 - QEmu: x86 emulator, emulates a 64-bit x86 processor.
@@ -595,9 +676,71 @@ The concept of dereferencing should feel familiar because the syntax `[ax]` from
 - Make: compilation tool, automates build process.
 - `x86_64-elf-gcc`, `x86_64-elf-ld` (`brew install i386-elf-binutils i386-elf-gcc`): binary utilities and GCC compiler for x86, cross-compiled for M1 Mac.
 
-## Routines vs. functions
+#### Terminology
 * _routine_: assembly code, compiled to machine code, labeled by address, parametrized by registers.
 * _function_: C code: offset by compiler annotation, parametrized by contents of the stack.
+
+#### Registers and their usage
+
+From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
+
+```
+
+    32 bits: EAX   EBX   ECX   EDX
+    16 bits:  AX    BX    CX    DX
+     8 bits:  AH AL BH BL CH CL DH DL
+
+    EAX,AX,AH,AL: Called the **a**ccumulator register. 
+                  Used for I/O port access, arithmetic, interrupt calls, etc...
+
+    EBX,BX,BH,BL: Called the **b**ase register.
+                  Used as a base pointer for memory access, gets some interrupt return values.
+
+    ECX,CX,CH,CL: Called the **c**ounter register
+                  Used as a loop counter and for shifts gets some interrupt values.
+
+    EDX,DX,DH,DL: Called the **d**ata register
+                  Used for I/O port access, arithmetic, some interrupt calls.
+
+```
+
+#### ASCII table
+```
+dec  hex    char                dec  hex    char        dec  hex   char        dec  hex   char
+0    0x0    null                32   0x20   space       64   0x40  @           96   0x60  `
+1    0x1    start of heading    33   0x21   !           65   0x41  A           97   0x61  a
+2    0x2    start of text       34   0x22   "           66   0x42  B           98   0x62  b
+3    0x3    end of text         35   0x23   #           67   0x43  C           99   0x63  c
+4    0x4    end transmission    36   0x24   $           68   0x44  D           100  0x64  d
+5    0x5    inquiry             37   0x25   %           69   0x45  E           101  0x65  e
+6    0x6    acknowledge         38   0x26   &           70   0x46  F           102  0x66  f
+7    0x7    bell                39   0x27   '           71   0x47  G           103  0x67  g
+8    0x8    backspace           40   0x28   (           72   0x48  H           104  0x68  h
+9    0x9    horizontal tab      41   0x29   )           73   0x49  I           105  0x69  i
+10   0xa    line feed           42   0x2a   *           74   0x4a  J           106  0x6a  j
+11   0xb    vertical tab        43   0x2b   +           75   0x4b  K           107  0x6b  k
+12   0xc    for mfeed           44   0x2c   ,           76   0x4c  L           108  0x6c  l
+13   0xd    carriage return     45   0x2d   -           77   0x4d  M           109  0x6d  m
+14   0xe    shift out           46   0x2e   .           78   0x4e  N           110  0x6e  n
+15   0xf    shift in            47   0x2f   /           79   0x4f  O           111  0x6f  o
+16   0x10   data link escape    48   0x30   0           80   0x50  P           112  0x70  p
+17   0x11   device control 1    49   0x31   1           81   0x51  Q           113  0x71  q
+18   0x12   device control 2    50   0x32   2           82   0x52  R           114  0x72  r
+19   0x13   device control 3    51   0x33   3           83   0x53  S           115  0x73  s
+20   0x14   device control 4    52   0x34   4           84   0x54  T           116  0x74  t
+21   0x15   negative ack        53   0x35   5           85   0x55  U           117  0x75  u
+22   0x16   synchronous idle    54   0x36   6           86   0x56  V           118  0x76  v
+23   0x17   end of Tx block     55   0x37   7           87   0x57  W           119  0x77  w
+24   0x18   cancel              56   0x38   8           88   0x58  X           120  0x78  x
+25   0x19   end of medium       57   0x39   9           89   0x59  Y           121  0x79  y
+26   0x1a   substitute          58   0x3a   :           90   0x5a  Z           122  0x7a  z
+27   0x1b   escape              59   0x3b   ;           91   0x5b  [           123  0x7b  {
+28   0x1c   file separator      60   0x3c   <           92   0x5c  \           124  0x7c  |
+29   0x1d   group separator     61   0x3d   =           93   0x5d  ]           125  0x7d  }
+30   0x1e   record separator    62   0x3e   >           94   0x5e  ^           126  0x7e  ~
+31   0x1f   unit separator      63   0x3f   ?           95   0x5d  _           127  0x7d  del
+
+```
 
 [^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
 
