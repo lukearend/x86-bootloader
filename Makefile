@@ -1,11 +1,11 @@
-# Automatically generate lists of sources using wildcared.
+# Automatically generate lists of sources using wildcard.
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h)
 
 # Todo: make sources depend on header files.
 
 # Convert *.c filenames to *.o as a list of object files to build.
-OBJJ = ${C_SOURCES:.c=.o}
+OBJ = ${C_SOURCES:.c=.o}
 
 # Clean, build and run.
 all: clean os-image run
@@ -66,7 +66,7 @@ example/%_disassemble.bin: example/%_disassemble.o
 
 # Kernel code --------------------------------------------------------------------------------------
 
-# Create kernel binary linking kernel entry to kernel main code.
+# Create kernel binary by linking kernel entry code to kernel main.
 kernel/kernel.bin: kernel/enter_kernel.o kernel/kernel.o
 	x86_64-elf-ld -melf_i386 -o $@ -Ttext 0x1000 --oformat binary $^
 
@@ -74,7 +74,7 @@ kernel/kernel.bin: kernel/enter_kernel.o kernel/kernel.o
 os-image: boot/load_kernel.bin kernel/kernel.bin
 	cat $^ > $@
 
-# Compile assemblie sources into binary.
+# Compile assembly sources into binary.
 %.bin: %.asm
 	nasm $< -f bin -o $@
 
