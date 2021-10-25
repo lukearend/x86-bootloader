@@ -51,7 +51,7 @@ hello_advanced: example/hello_advanced.bin
 
 # A boot sector that switches from real to protected mode.
 boot_to_pm: example/boot_to_pm.bin
-	qemu-system-x86_64 -drive file=example/boot_to_pm.bin,format=raw -net none
+	qemu-system-x86_64 -drive file=$<,format=raw -net none
 
 # Compiler/disassembly examples:
 # - basic_disassemble: prints out disassembly of a trivial function call.
@@ -68,12 +68,11 @@ example/%_disassemble.bin: example/%_disassemble.o
 
 # Create kernel binary linking kernel entry to kernel main code.
 kernel/kernel.bin: kernel/enter_kernel.o kernel/kernel.o
-	cd kernel && \
-	x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o kernel.o
+	x86_64-elf-ld -melf_i386 -o $@ -Ttext 0x1000 --oformat binary $^
 
 # Create executable image by prepending kernel binary with boot sector.
-os-image: kernel/kernel.bin boot/load_kernel.bin
-	cat boot/load_kernel.bin kernel/kernel.bin > os-image
+os-image: boot/load_kernel.bin kernel/kernel.bin
+	cat $^ > $@
 
 # Compile assemblie sources into binary.
 %.bin: %.asm
@@ -91,4 +90,4 @@ os-image: kernel/kernel.bin boot/load_kernel.bin
 
 # Run operating system on emulated x86.
 run: os-image
-	qemu-system-x86_64 -drive file=os-image,format=raw -net none
+	qemu-system-x86_64 -drive file=$<,format=raw -net none
