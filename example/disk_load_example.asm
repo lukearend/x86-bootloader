@@ -28,9 +28,9 @@
 
   jmp $
 
-%include "../boot/print_string.asm"
-%include "../boot/print_hex.asm"
-%include "../boot/disk_load.asm"
+%include "boot/print_string.asm"
+%include "boot/print_hex.asm"
+%include "boot/disk_load.asm"
 
 BOOT_DRIVE:              ; Variable to store boot drive.
   db 0

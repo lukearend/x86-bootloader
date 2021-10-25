@@ -12,7 +12,7 @@
 
   jmp $                     ; Hang
 
-%include "../boot/print_string.asm"
+%include "boot/print_string.asm"
 
 ; Data
 HELLO_MSG:

@@ -20,10 +20,10 @@
   jmp $               ; Never reached
 
 ; Includes
-%include "../boot/print_string.asm"
-%include "../boot/gdt.asm"
-%include "../boot/switch_to_pm.asm"
-%include "../boot/print_string_pm.asm"
+%include "boot/print_string.asm"
+%include "boot/gdt.asm"
+%include "boot/switch_to_pm.asm"
+%include "boot/print_string_pm.asm"
 
 [bits 32]
 

@@ -27,11 +27,11 @@ KERNEL_OFFSET equ 0x1000  ; This it the memory offset into which we will load ou
 
 
 ; Includes
-%include "../boot/print_string.asm"
-%include "../boot/disk_load.asm"
-%include "../boot/gdt.asm"
-%include "../boot/switch_to_pm.asm"
-%include "../boot/print_string_pm.asm"
+%include "boot/print_string.asm"
+%include "boot/disk_load.asm"
+%include "boot/gdt.asm"
+%include "boot/switch_to_pm.asm"
+%include "boot/print_string_pm.asm"
 
 
 ; Since switch_to_pm changed our assembler encoding from 16-bit to 32-bit, switch it back to 16-bit
