@@ -650,7 +650,7 @@ Here is what the compiled binary looks like, dissassembled:
 00000015  00                db 0x00
 ```
 
-The first few lines make sense, though we notice that MY_STRING has been replaced with the absolute offset 0x10. Now, at offset 0x10 in this machine code, things get funky: the CPU sends off a seemingly random series of commands.
+The first few lines make sense, though we notice that `MY_STRING` has been replaced with the absolute offset 0x10. Now, at offset 0x10 in this machine code, things get funky: the CPU sends off a seemingly random series of commands.
 
 The reason is for this is that the disassembler cannot distinguish between code and data when interpreting the machine code it encounters. If we instead look at bytes 0x10-0x15 as data (ASCII values rather than assembly commands), we see that these values are the ASCII characters for `my_string`, terminated by the null byte 0x0. The offset 0x10 stored at the base of the stack is our `char* my_string`: its assembly label is MY_STRING, and it points to the first character of `my_string` in memory.
 
