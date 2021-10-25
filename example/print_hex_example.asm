@@ -9,8 +9,8 @@
 
   jmp $
 
-%include "print_string.asm"
-%include "print_hex.asm"
+%include "../boot/print_string.asm"
+%include "../boot/print_hex.asm"
 
 times 510-($-$$) db 0
 dw 0xaa55

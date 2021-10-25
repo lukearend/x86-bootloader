@@ -1,5 +1,5 @@
 ;
-; A boot sector that will bootstrap the kernel from OS image on boot disk.
+; A boot sector that will load the kernel from OS image on boot disk.
 ;
 
 ; BIOS loads boot sector code into memory offset 0x7c00.
@@ -19,7 +19,7 @@ KERNEL_OFFSET equ 0x1000  ; This it the memory offset into which we will load ou
   call print_string       ; terminated string whose start is pointed at by register dx.
 
   call load_kernel        ; Uses BIOS interrupt to read kernel into memory
-  
+
   call switch_to_pm       ; Switch to protected mode, from which control will not return. After
                           ; making the switch, we enter our 32-bit code at the offset BEGIN_PM.
 
@@ -41,7 +41,7 @@ KERNEL_OFFSET equ 0x1000  ; This it the memory offset into which we will load ou
 ; Load the kernel from disk into memory. Note we must read the correct number of sectors or
 ; else we get a disc error.
 load_kernel:
-  
+
   mov bx, MSG_LOAD_KERNEL ; Print message for kernel load.
   call print_string
 
@@ -57,23 +57,22 @@ load_kernel:
 
 BEGIN_PM:
 
-  mov ebx, MSG_PROT_MODE ; Print message indicating we are in real mode.
+  mov ebx, MSG_PROT_MODE  ; Print message indicating we are in real mode.
   call print_string_pm
 
-  call KERNEL_OFFSET     ; Begin executing the kernel.
+  call KERNEL_OFFSET      ; Begin executing the kernel.
 
-  jmp $                  ; If return ever controls from the kernel, hang.
+  jmp $                   ; If return ever controls from the kernel, hang.
 
 
 ; Global variables
 BOOT_DRIVE db 0x0
 
-MSG_REAL_MODE:
-  ; Give this a line feed + carriage return so next message doesn't overwrite it.
+MSG_REAL_MODE:            ; Include line feed/carriage return so next message doesn't overwrite.
   db "started in 16-bit real mode", 0xa, 0xd, 0x0
 
 MSG_LOAD_KERNEL:
-  db "loading kernel into memory... ", 0x0
+  db "loading kernel into memory...", 0x0
 
 MSG_PROT_MODE:
   db "successfully landed in 32-bit protected mode.", 0x0

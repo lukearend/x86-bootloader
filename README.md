@@ -785,6 +785,38 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 
 ```
 
+#### Makefile tricks
+
+* In recipe:
+
+    `$^` is substituted with the target's dependency files
+    `$<` is substituted with the first dependency
+    `$@` is substituted with the target file
+    `${OBJ}` is substituted for the variable `OBJ`, if any
+    `$*` is substituted for match to `%` in generic targets
+
+* Good to include a `clean` target which gets rid of all generated files.
+
+* `wildcard`: automatically expands to a list of existing files that match pattern(s):
+
+        C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
+
+* `OBJ = ${C_SOURCES:.c=.o}`: convert all files ending with `.c` to end with `.o`; useful for creating list of object files to build.
+
+* Generic target for building `anyfile.o` from `anyfile.c`:
+
+        %.o: %.c
+            gcc --ffreestanding -c $< -o $@
+
+#### Organization of the code
+
+* `example`: anything which is example or demonstration code
+* `boot`: anything related to booting and the boot sector
+* `kernel`: all kernel-related code which is not device-driver specific
+* `drivers`: any hardware specific driver code
+
+```
+
 #### Terminology
 * _routine_: assembly code, compiled to machine code, labeled by address, parametrized by registers.
 * _function_: C code: offset by compiler annotation, parametrized by contents of the stack.
