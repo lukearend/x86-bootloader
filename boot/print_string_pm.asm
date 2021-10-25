@@ -1,11 +1,10 @@
 ;
-; A routine for printing a string directly to video memory.
+; A routine for printing the string pointed to by B register.
 ;
 
 VIDEO_MEMORY equ 0xb8000
 WHITE_ON_BLACK equ 0x0f
 
-; Print a null-terminated string pointed to by extended B register.
 print_string_pm:
 	pusha
 	mov edx, VIDEO_MEMORY

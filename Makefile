@@ -1,82 +1,89 @@
-all: 
+.PHONY: all clean
+all: clean os-image
 
-find_the_byte: boot/find_the_byte.asm
+clean:
+	rm bin/*
+	rm os-image
+
+minimal_example: 
+	qemu-system-x86_64 -drive file=boot/minimal_example.bin,format=raw -net none
+
+find_the_byte:
 	cd boot && \
 	nasm find_the_byte.asm -f bin -o ../bin/find_the_byte.bin && \
 	qemu-system-x86_64 -drive file=../bin/find_the_byte.bin,format=raw -net none
 
-stack_example: boot/stack_example.asm
+stack_example:
 	cd boot && \
 	nasm stack_example.asm -f bin -o ../bin/stack_example.bin && \
 	qemu-system-x86_64 -drive file=../bin/stack_example.bin,format=raw -net none
-
-print_string: boot/print_string.asm
-	cd boot && \
-	nasm print_string.asm -f bin -o ../bin/print_string.bin
 
 hello_simple:
 	cd boot && \
 	nasm hello_simple.asm -f bin -o ../bin/hello_simple.bin && \
 	qemu-system-x86_64 -drive file=../bin/hello_simple.bin,format=raw -net none
 
-hello_advanced: print_string boot/hello_advanced.asm
+hello_advanced:
 	cd boot && \
 	nasm hello_advanced.asm -f bin -o ../bin/hello_advanced.bin && \
 	qemu-system-x86_64 -drive file=../bin/hello_advanced.bin,format=raw -net none
 
-print_hex: print_string boot/print_hex.asm
-	cd boot && \
-	nasm print_hex.asm -f bin -o ../bin/print_hex.bin
-
-print_hex_example: print_hex boot/print_hex_example.asm
+print_hex_example:
 	cd boot && \
 	nasm print_hex_example.asm -f bin -o ../bin/print_hex_example.bin && \
 	qemu-system-x86_64 -drive file=../bin/print_hex_example.bin,format=raw -net none
 
-segment_offset: boot/segment_offset.asm
+segments_example:
 	cd boot && \
-	nasm segment_offset.asm -f bin -o ../bin/segment_offset.bin && \
-	qemu-system-x86_64 -drive file=../bin/segment_offset.bin,format=raw -net none
+	nasm segments_example.asm -f bin -o ../bin/segments_example.bin && \
+	qemu-system-x86_64 -drive file=../bin/segments_example.bin,format=raw -net none
 
-disk_load: boot/disk_load.asm
+disk_load_example:
 	cd boot && \
-	nasm disk_load.asm -f bin -o ../bin/disk_load.bin
+	nasm disk_load_example.asm -f bin -o ../bin/disk_load_example.bin  && \
+	qemu-system-x86_64 -drive file=../bin/disk_load_example.bin,format=raw -net none
 
-print_string_pm: boot/print_string_pm.asm
-	cd boot && \
-	nasm print_string_pm.asm -f bin -o ../bin/print_string_pm.bin
-
-gdt: boot/gdt.asm
-	cd boot && \
-	nasm gdt.asm -f bin -o ../bin/gdt.bin
-
-boot_to_pm: print_string gdt print_string_pm boot/switch_to_pm.asm
+boot_to_pm:
 	cd boot && \
 	nasm boot_to_pm.asm -f bin -o ../bin/boot_to_pm.bin && \
 	qemu-system-x86_64 -drive file=../bin/boot_to_pm.bin,format=raw -net none
 
-basic: kernel/basic.c
+basic_example:
 	cd kernel && \
-	x86_64-elf-gcc -m32 -ffreestanding -c basic.c -o basic.o && \
-	x86_64-elf-ld -melf_i386 -o basic.bin -Ttext 0x0 --oformat binary basic.o && \
-	ndisasm -b 32 basic.bin
+	x86_64-elf-gcc -m32 -ffreestanding -c basic_example.c -o basic_example.o && \
+	x86_64-elf-ld -melf_i386 -o ../bin/basic_example.bin -Ttext 0x0 --oformat binary basic_example.o && \
+	ndisasm -b 32 ../bin/basic_example.bin
 
-local_var: kernel/local_var.c
+local_var_example:
 	cd kernel && \
-	x86_64-elf-gcc -m32 -ffreestanding -c local_var.c -o local_var.o && \
-	x86_64-elf-ld -melf_i386 -o local_var.bin -Ttext 0x0 --oformat binary local_var.o && \
-	ndisasm -b 32 local_var.bin
+	x86_64-elf-gcc -m32 -ffreestanding -c local_var_example.c -o local_var_example.o && \
+	x86_64-elf-ld -melf_i386 -o ../bin/local_var_example.bin -Ttext 0x0 --oformat binary local_var_example.o && \
+	ndisasm -b 32 ../bin/local_var_example.bin
 
-calling: kernel/calling.c
+calling_example:
 	cd kernel && \
-	x86_64-elf-gcc -m32 -ffreestanding -c calling.c -o calling.o && \
-	x86_64-elf-ld -melf_i386 -o calling.bin -Ttext 0x0 --oformat binary calling.o && \
-	ndisasm -b 32 calling.bin
+	x86_64-elf-gcc -m32 -ffreestanding -c calling_example.c -o calling_example.o && \
+	x86_64-elf-ld -melf_i386 -o ../bin/calling_example.bin -Ttext 0x0 --oformat binary calling_example.o && \
+	ndisasm -b 32 ../bin/calling_example.bin
 
-string: kernel/string.c
+string_example:
 	cd kernel && \
-	x86_64-elf-gcc -m32 -ffreestanding -c string.c -o string.o && \
-	x86_64-elf-ld -melf_i386 -o string.bin -Ttext 0x0 --oformat binary string.o && \
-	ndisasm -b 32 string.bin
+	x86_64-elf-gcc -m32 -ffreestanding -c string_example.c -o string_example.o && \
+	x86_64-elf-ld -melf_i386 -o ../bin/string_example.bin -Ttext 0x0 --oformat binary string_example.o && \
+	ndisasm -b 32 ../bin/string_example.bin
 
-.PHONY: all
+bin/kernel.bin:
+	cd kernel && \
+	nasm enter_kernel.asm -f elf -o enter_kernel.o && \
+	x86_64-elf-gcc -m32 -ffreestanding -c kernel.c -o kernel.o && \
+	x86_64-elf-ld -melf_i386 -o ../bin/kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o kernel.o
+
+bin/load_kernel.bin:
+	cd boot && \
+	nasm load_kernel.asm -f bin -o ../bin/load_kernel.bin
+
+os-image: bin/kernel.bin bin/load_kernel.bin
+	cat bin/load_kernel.bin bin/kernel.bin > os-image
+
+run: os-image
+	qemu-system-x86_64 -drive file=os-image,format=raw -net none

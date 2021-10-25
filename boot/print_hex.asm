@@ -55,8 +55,6 @@ below_ten:
   mov [bx], cx
   ret
 
-%include "print_string.asm"
-
 ; This is the memory we fill up with ASCII characters to be written.
 HEX_OUT:
   db '0x0000', 0

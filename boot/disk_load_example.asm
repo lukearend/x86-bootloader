@@ -3,7 +3,7 @@
 ; demonstrate disk_load function by loading those sectors and printing a value from each.
 ;
 
-[org 0x7c000]
+[org 0x7c00]
 
   ; BIOS stores the drive it has auto-detected as boot-drive in `dl`.
   mov [BOOT_DRIVE], dl
@@ -14,7 +14,7 @@
 
   ; Load 5 sectors to 0x0000(es):0x9000(bx). `es` is initially 0x0000.
   mov bx, 0x9000
-  mov dh, 5
+  mov dh, 2
   mov dl, [BOOT_DRIVE]
   call disk_load
 

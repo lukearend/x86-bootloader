@@ -15,7 +15,7 @@ The simplest example of machine code would be a block of 512 bytes which:
  - begins with a loop containing a very simple jump instruction
  - is padded the rest of the way with zero-valued bytes[^1].
 
-We can write the following machine code, using a hex editor like Hex Fiend, to the file _miminal.bin_:
+We can write the following machine code, using a hex editor like Hex Fiend, to the file _minimal_example.bin_:
 
 ```
 eb fe 00 00 00 00 00 00 00 00 00 00 00 00 00 00
@@ -118,12 +118,12 @@ The statement
 
 will be completely replaced by the contents of the file.
 
-A more sophisticated "hello world" program that ties these things together is _hello_advanced.asm_, which makes use of labels, the stack, and a _print_string.asm_ function as well. _print_hex.asm_ makes use of the assembly operations `and` and `shr` to convert a register value to a hex string and print to screen. _print_string_example.asm_ demonstrates usage.
+A more sophisticated "hello world" program that ties these things together is _hello_advanced.asm_, which makes use of labels, the stack, and the `print_string` routine as well. _print_hex.asm_ makes use of the assembly operations `and` and `shr` to convert a register value to a hex string and print to screen. _print_hex_example.asm_ demonstrates usage.
 
 Reading the disk
 ----------------
 
-So that we can reach addresses higher than 65535 on a 16-bit CPU, we introduce segments that provide a programmable data offset to the assembler, like the usage of the `[org 0x7c00]`. Segments provide an offset equal to the value they contain times 16 (which is easy to compute through a leftwise bit-shift). For example, setting a segment to 0x7c0 and then getting an address using that segment will offset the address by 0x7c00. It turns out that by default data addresses are offset by the `ds` segment. However we can explicitly use another segment, like the `es` segment, like so: `mov al, [es:my_label]`. See a demonstration of segment usage in _segment_offset.asm_.
+So that we can reach addresses higher than 65535 on a 16-bit CPU, we introduce segments that provide a programmable data offset to the assembler, like the usage of the `[org 0x7c00]`. Segments provide an offset equal to the value they contain times 16 (which is easy to compute through a leftwise bit-shift). For example, setting a segment to 0x7c0 and then getting an address using that segment will offset the address by 0x7c00. It turns out that by default data addresses are offset by the `ds` segment. However we can explicitly use another segment, like the `es` segment, like so: `mov al, [es:my_label]`. See a demonstration of segment usage in _segments_example.asm_.
 
 #### Spinning disk drives
 
@@ -301,7 +301,7 @@ C compilation
 
 We will be writing our kernel in C and compiling it to machine code. At boot, our boot sector will be loaded into memory and executed to read in the kernel code. In preparation for writing the kernel, we will study C compilation, the process by which C source code is converted to assembly code.
 
-Consider the following C code in the file `basic.c`:
+Consider the following C code in the file `basic_example.c`:
 
 ```
 // Define an empty function that returns an integer
@@ -311,18 +311,18 @@ int my_function() {
 
 ```
 
-We can compile the code to the file `basic.o` using gcc:
+We can compile the code to the file `basic_example.o` using gcc:
 
-    x86_64-elf-gcc -m32 -ffreestanding -c basic.c -o basic.o
+    x86_64-elf-gcc -m32 -ffreestanding -c basic_example.c -o basic_example.o
 
 and then disassemble it using `objdump`:
 
-    objdump -d basic.o
+    objdump -d basic_example.o
 
 The output of `objdump` is the following:
 
 ```
-basic.o:    file format elf32-i386
+basic_example.o:    file format elf32-i386
 
 
 Disassembly of section .text:
@@ -338,7 +338,7 @@ Disassembly of section .text:
 We can make that a bit friendlier by translating to NASM and commenting:
 
 ```
-basic.o: 32-bit i386
+basic_example.o:    32-bit i386
 
 Machine code:               Assembly:          
 00000000 <_my_function>:    my_function:
@@ -365,17 +365,17 @@ The object files output by the compiler contain the raw machine code plus some a
 
 To use the linker to create an executable using the object file above, run:
 
-    x86_64-elf-ld -melf_i386 -o basic.bin -Ttext 0x0 --oformat binary basic.o
+    x86_64-elf-ld -melf_i386 -o basic_example.bin -Ttext 0x0 --oformat binary basic_example.o
 
 * `-melf_i386` sets e**m**ulation to `elf_i386`, the original 32-bit x86 architecture.
-* `-o basic.bin` specifies the output file as `basic.bin`,
+* `-o basic_example.bin` specifies the output file as `basic_example.bin`,
 * `-Ttext 0x0` says to offset all addresses in the binary relative to 0x0. This option is important when writing our kernel later, as the kernel is loaded to some known location in memory and we must offset addresses relative to it.
 * `--oformat binary` specifies the output format as binary (leaving no metadata in the machine code).
-* `basic.o` is an input argument, the file to be linked.
+* `basic_example.o` is an input argument, the file to be linked.
 
 Now let us dissassemble this binary using a NASM dissassembler:
 
-    ndisasm -b 32 basic.bin
+    ndisasm -b 32 basic_example.bin
 
 The result is:
 
@@ -389,7 +389,7 @@ The result is:
 
 This is essentially the same as our "nice" version of the dissassembly output from `objdump`. The left-hand column shows the file offsets of the instructions. The middle columns shows the machine code as one or multiple bytes. The right column shows the NASM assembly instruction GCC generated.
 
-Now we can write some C code declaring a local variable and compile, link and disassemble it as before. We write the following to _local_var.c_:
+Now we can write some C code declaring a local variable and compile, link and disassemble it as before. We write the following to _local_var_example.c_:
 
 ```
 // Declare a local variable.
@@ -401,9 +401,9 @@ int my_function() {
 
 And then run:
 
-    x86_64-elf-gcc -m32 -ffreestanding -c local_var.c -o local_var.o
-    x86_64-elf-ld -melf_i386 -o local_var.bin -Ttext 0x0 --oformat binary local_var.o
-    ndisasm -b 32 local_var.bin
+    x86_64-elf-gcc -m32 -ffreestanding -c local_var_example.c -o local_var_example.o
+    x86_64-elf-ld -melf_i386 -o local_var_example.bin -Ttext 0x0 --oformat binary local_var_example.o
+    ndisasm -b 32 local_var_example.bin
 
 We get the following output:
 
@@ -439,7 +439,7 @@ Throughout all of this, what we think of as `my_var` is tracked by the compiler 
 
 #### Calling functions
 
-Now see the following code featuring one function which calls another:
+Now see the following code featuring one function which calls another, from _calling_example.c_:
 
 ```
 void callee_function(int my_arg) {
@@ -600,7 +600,7 @@ In contrast to dereferencing one can use the _address-of_ operator, `&`. This op
 
 We can now see a good way to represent strings in memory. We can represent the start of the string with a pointer its first letter stored in memory: type `char*`. This declaration creates a variable holding the address in memory of a `char`, or unsigned 8-bit value (often taken to be an ASCII character code). The string then expected to be stored as a series of `char` values, arranged contiguously in memory beginning at the start address.
 
-Let's see how a compiler treats a string variable in C (_my_string.c_):
+Let's see how a compiler treats a string variable in C (_string_example.c_):
 
 ```
 void my_function() {
@@ -666,43 +666,62 @@ We now have all we need to boot and execute the simplest of kernels in C:
 5. Switch to 32-bit protected mode.
 6. Begin executing our kernel code from start of where we loaded it into memory.
 
----
+#### Writing the code
 
-#### Dependencies
-- MacOSX: host operating system, runs QEmu and editors.
-- Hex Fiend: hex editor, used to write and read raw binaries.
-- QEmu: x86 emulator, emulates a 64-bit x86 processor.
-- nasm: x86 assembler, assembles bytecode for an x86 processor.
-- Make: compilation tool, automates build process.
-- `x86_64-elf-gcc`, `x86_64-elf-ld` (`brew install i386-elf-binutils i386-elf-gcc`): binary utilities and GCC compiler for x86, cross-compiled for M1 Mac.
-
-#### Terminology
-* _routine_: assembly code, compiled to machine code, labeled by address, parametrized by registers.
-* _function_: C code: offset by compiler annotation, parametrized by contents of the stack.
-
-#### Registers and their usage
-
-From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
+The kernel code itself is very straightforward: its only job is to indicate that it has been successfully loaded and executed. We can keep things simple for now, and simply print an `X` to the first position on the console. Note that `(char*) ` is a casting operator which _typecasts_ the following value to the type pointer-to-char.
 
 ```
+void main() {
+    // The first position of video memory (row 0, col 0) is at memory address 0xb8000.
+    // We store a pointer to this byte. `(char*) ` is necessary before 0xb8000 to typecast
+    // it from a 32-bit int to a pointer-to-char.
+    char* video_memory = (char*) 0xb8000;
 
-    32 bits: EAX   EBX   ECX   EDX
-    16 bits:  AX    BX    CX    DX
-     8 bits:  AH AL BH BL CH CL DH DL
+    // We assign the value 'X' to the byte in memory pointed to by `video_memory`.
+    // Note: char, byte and uint8 all contain 8 bits of memory, they just mean different things.
+    *video_memory = 'X';
+}
+```
 
-    EAX,AX,AH,AL: Called the **a**ccumulator register. 
-                  Used for I/O port access, arithmetic, interrupt calls, etc...
+Now we need to compile this to binary. It is important to know at which position this code will reside in memory after it has been loaded in, because the linker must add that offset while resolving these addresses. We explicitly tell the linker that this code will start at position in 0x1000 in memory using the `-Ttext 0x1000` option.
 
-    EBX,BX,BH,BL: Called the **b**ase register.
-                  Used as a base pointer for memory access, gets some interrupt return values.
+    x86_64-elf-gcc -m32 -ffreestanding -c kernel.c -o kernel.o
+    x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary kernel.o
 
-    ECX,CX,CH,CL: Called the **c**ounter register
-                  Used as a loop counter and for shifts gets some interrupt values.
+#### Creating the kernel image
 
-    EDX,DX,DH,DL: Called the **d**ata register
-                  Used for I/O port access, arithmetic, some interrupt calls.
+Now it comes time to write a boot sector that loads our kernel code into memory. Recall that we have BIOS routines (available in 16-bit mode) which will read an arbitrary number of sectors from the given drive, while in 32-bit mode we have no disk reading capability as of yet. This means our boot sector should load the kernel before switching into 32-bit protected mode. To simplify the problem of where to read the kernel sectors from, by convention we place them in the sectors right after the boot sector on the boot drive. This way the BIOS will load the boot sector and in it, we can use BIOS routines to read in the remaining kernel code. Our boot drive is be created by
+
+    cat boot_sect.bin kernel.bin > os-image
+
+`os-image` is the operating system image: it is just the concatenation of the boot sector and kernel machine code. _load_kernel.asm_ shows a boot sector that will boostrap the kernel from the disk containing our kernel image.
+
+## The entry point to the kernel
+
+Before recklessly running this image, we must attend to one more important detail. To begin executing our kernel, we jumped to the start of the block where we loaded it in memory. But how do we know that address 0x0 in the kernel code corresponds to the function `main()`? The C compiler, in principle, may have placed the machine code for `main()` further down in the binary, especially if the source code file contained other functions preceding `main()`. We need a robust way to ensure that we enter the kernel code at the function `main()`.
+
+A good trick for this is to simply prepend the kernel code with a bit of assembly whose only job is to jump to the location of the symbol `main`. Since the symbol `main` is defined in the assembly compiled from `kernel.c`, we just need to let our assembler know that it can expect `main` to be defined externally. Let's put the following in `enter_kernel.asm`:
 
 ```
+[bits 32]
+[extern main] ; Expect main to be defined in another file.
+
+call main     ; Enter the main function.
+jmp $         ; When we return from the kernel, hang.
+```
+
+Now, `enter_kernel.asm` cannot be assembled to binary on its own, because the label `main` is not defined within its scope and therefore cannot be resolved. We will assemble this file (using our usual assembler) as an object file instead of a binary. The object file is in the executable and linking format (ELF), a common output format for C compilers. ELF adds annotations to the compiled assembly to allow resolving symbols across files.
+
+    nasm enter_kernel.asm -f elf -o enter_kernel.o
+
+Now, we can use the linker to link this file to our main kernel code file itself. The linker respects the order of files as they are given on the command line; that is, the following command will ensure that `kernel_entry` code precedes `kernel` code in the binary:
+
+    x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o kernel.o
+
+Like before, we can construct our OS image by concatenating `load_kernel.bin` with `kernel.bin`. At this point we can truly say we have the beginnings of an x86 operating system.
+
+Appendix
+--------
 
 #### ASCII table
 ```
@@ -738,9 +757,51 @@ dec  hex    char                dec  hex    char        dec  hex   char        d
 28   0x1c   file separator      60   0x3c   <           92   0x5c  \           124  0x7c  |
 29   0x1d   group separator     61   0x3d   =           93   0x5d  ]           125  0x7d  }
 30   0x1e   record separator    62   0x3e   >           94   0x5e  ^           126  0x7e  ~
-31   0x1f   unit separator      63   0x3f   ?           95   0x5d  _           127  0x7d  del
+31   0x1f   unit separator      63   0x3f   ?           95   0x5d  _           127  0x7f  del
 
 ```
+
+#### Registers and their usage
+
+From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
+
+```
+
+    32 bits: EAX   EBX   ECX   EDX
+    16 bits:  AX    BX    CX    DX
+     8 bits:  AH AL BH BL CH CL DH DL
+
+    EAX,AX,AH,AL: Called the **a**ccumulator register. 
+                  Used for I/O port access, arithmetic, interrupt calls, etc...
+
+    EBX,BX,BH,BL: Called the **b**ase register.
+                  Used as a base pointer for memory access, gets some interrupt return values.
+
+    ECX,CX,CH,CL: Called the **c**ounter register
+                  Used as a loop counter and for shifts gets some interrupt values.
+
+    EDX,DX,DH,DL: Called the **d**ata register
+                  Used for I/O port access, arithmetic, some interrupt calls.
+
+```
+
+#### Terminology
+* _routine_: assembly code, compiled to machine code, labeled by address, parametrized by registers.
+* _function_: C code: offset by compiler annotation, parametrized by contents of the stack.
+
+#### Dependencies
+- MacOSX: host operating system, runs QEmu and editors.
+- Hex Fiend: hex editor, used to write and read raw binaries.
+- QEmu: x86 emulator, emulates a 64-bit x86 processor.
+- nasm: x86 assembler, assembles bytecode for an x86 processor.
+- Make: compilation tool, automates build process.
+- `x86_64-elf-gcc`, `x86_64-elf-ld` (`brew install i386-elf-binutils i386-elf-gcc`): binary utilities and GCC compiler for x86, cross-compiled for M1 Mac.
+
+#### Hardware
+* x86_32 CPU
+* motherboard? with usb port
+* terminal display console
+* usb drive which can be formatted with os-image
 
 [^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
 
