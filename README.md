@@ -1,7 +1,28 @@
+os-dev
+======
+
+_learning by building a simple operating system_
+
+The point of this project is to learn about computation by developing a simple operating system from scratch. The first question we face when developing on bare metal is which computer architecture to use. A _computer architecture_, (or _instruction set_), is a mapping from binary machine codes to well-defined hardware operations. During execution, the CPU reads machine codes in sequence and executes the corresponding operations to manipulate memory and its internal state.
+
+The main two instruction set categories are x86 and ARM, each having their own advantages. The x86 architecture (rather, family of architectures) was introduced by Intel in 1978 for the Intel 8086 microprocessor. The 8086 had an instruction size of 16 bits, which greatly limited the range of memory it could reach by comparison to today. Thus in 1985 Intel released a 32-bit version of the x86 architecture for the i386 microprocessor. This enabled the CPU to reach a far greater range of memory, around 4 GB. Finally, a 64-bit version of x86 was released in 1999 which included new modes and further built-in support for memory management. We will focus on the 32-bit version of the x86 architecure to keep things simple.
+
+ARM is an instruction set which has been conventionally used for embedded and low-power applications. It has recently seen amazing success as the computer architecture of Apple's in-house M1 microprocessor. We choose x86 rather than ARM in the project at hand for several different reasons:
+    
+  * x86 is "classic" and worth studying to understand its influence and design patterns
+  * it is widely used and will continue to be widely used for a long time
+  * it is probably better to learn than ARM as a first architecture as it's older and simpler(?)
+
+The instruction set determines both the family of processors we may write for and the assembly language we will write in. An _assembly language_ is a mapping from commands made of simple mnemonics to machine codes for some computer architecture. The _assembler_ is a program which transforms assembly code into the corresponding machine code for some architecture.[^0] We will use the NASM x86 32-bit assembly language to write our assembly code for a 32-bit, x86 processor. We make use of the QEMU software package for emulating this processor and its peripherals.
+
+We will start with the boot process in assembly and begin working up from there. Everything that we will need to learn will be taught along the way, with various examples and well-commented code that can be ran using the `Makefile`. Eventually we'll be compiling C programs to assembly and building our kernel code base tha way.
+
+But first, let's start at the beginning.
+
 The boot process
 ----------------
 
-We take the BIOS as a given. The BIOS is a set of software routines stored on a chip which is loaded into memory and initialized when the computer is switched on. The BIOS detects and gives basic control of the essential devices (keyboard, screen and hard disks).
+We take the BIOS as a given. The BIOS is a set of software routines stored on a chip which is loaded into memory and initialized when the computer is switched on. The BIOS detects and gives basic control of the essential devices: keyboard, screen and hard disks.
 
 The BIOS's job is to boot the computer by reading the _boot sector_ into memory. The boot sector is a portion of memory (in 512-byte chunks) starting at the very first physical location on the hard disk. The BIOS knows it has reached the end of the boot sector when it encounters the 2-byte magic number 0xaa55.
 
@@ -815,7 +836,6 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 * `kernel`: all kernel-related code which is not device-driver specific
 * `drivers`: any hardware specific driver code
 
-```
 
 #### Terminology
 * _routine_: assembly code, compiled to machine code, labeled by address, parametrized by registers.
@@ -824,7 +844,7 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 #### Dependencies
 - MacOSX: host operating system, runs QEmu and editors.
 - Hex Fiend: hex editor, used to write and read raw binaries.
-- QEmu: x86 emulator, emulates a 64-bit x86 processor.
+- QEmu: x86 emulator, emulates a 32-bit x86 processor.
 - nasm: x86 assembler, assembles bytecode for an x86 processor.
 - Make: compilation tool, automates build process.
 - `x86_64-elf-gcc`, `x86_64-elf-ld` (`brew install i386-elf-binutils i386-elf-gcc`): binary utilities and GCC compiler for x86, cross-compiled for M1 Mac.
@@ -834,6 +854,8 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 * motherboard? with usb port
 * terminal display console
 * usb drive which can be formatted with os-image
+
+[^0]: We take the assembler as a given.
 
 [^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
 
