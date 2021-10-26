@@ -1,13 +1,13 @@
 os-dev
 ======
 
-_learning by building a simple operating system_
+_learn about computation by building an operating system_
 
 The point of this project is to learn about computation by developing a simple operating system from scratch. The first question we face when developing on bare metal is which computer architecture to use. A _computer architecture_, (or _instruction set_), is a mapping from binary machine codes to well-defined hardware operations. During execution, the CPU reads machine codes in sequence and executes the corresponding operations to manipulate memory and its internal state.
 
 The main two instruction set categories are x86 and ARM, each having their own advantages. The x86 architecture (rather, family of architectures) was introduced by Intel in 1978 for the Intel 8086 microprocessor. The 8086 had an instruction size of 16 bits, which greatly limited the range of memory it could reach by comparison to today. Thus in 1985 Intel released a 32-bit version of the x86 architecture for the i386 microprocessor. This enabled the CPU to reach a far greater range of memory, around 4 GB. Finally, a 64-bit version of x86 was released in 1999 which included new modes and further built-in support for memory management. We will focus on the 32-bit version of the x86 architecure to keep things simple.
 
-ARM is an instruction set which has been conventionally used for embedded and low-power applications. It has recently seen amazing success as the computer architecture of Apple's in-house M1 microprocessor. We choose x86 rather than ARM in the project at hand for several different reasons:
+ARM is an instruction set which has been conventionally used for embedded and low-power applications. It has recently seen amazing success as the architecture behind Apple's buil-in-house M1 microprocessor. We choose x86 rather than ARM in this project for several reasons:
     
   * x86 is "classic" and worth studying to understand its influence and design patterns
   * it is widely used and will continue to be widely used for a long time
@@ -717,7 +717,7 @@ Now it comes time to write a boot sector that loads our kernel code into memory.
 
 `os-image` is the operating system image: it is just the concatenation of the boot sector and kernel machine code. _load_kernel.asm_ shows a boot sector that will boostrap the kernel from the disk containing our kernel image.
 
-## The entry point to the kernel
+#### The entry point to the kernel
 
 Before recklessly running this image, we must attend to one more important detail. To begin executing our kernel, we jumped to the start of the block where we loaded it in memory. But how do we know that address 0x0 in the kernel code corresponds to the function `main()`? The C compiler, in principle, may have placed the machine code for `main()` further down in the binary, especially if the source code file contained other functions preceding `main()`. We need a robust way to ensure that we enter the kernel code at the function `main()`.
 
@@ -740,6 +740,32 @@ Now, we can use the linker to link this file to our main kernel code file itself
     x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o kernel.o
 
 Like before, we can construct our OS image by concatenating `load_kernel.bin` with `kernel.bin`. At this point we can truly say we have the beginnings of an x86 operating system.
+
+## Hardware
+
+At this point it is good to turn our attention towards hardware. What are the real-life products we need to put this computer together? The first thing is the microprocessor itself, and the motherboard it is mounted upon. The purpose of the motherboard is to connect the CPU to memory and its peripheral devices. In particular, we want a _socketed_ processor, meaning one which can be attached to a motherboard via a socket.
+
+```
+#### Hardware
+* x86_32 CPU
+* motherboard? with usb port
+* terminal display console
+* usb drive which can be formatted with os-image
+
+
+todo: flesh out this section
+
+socketed x86 32-bit microprocessor
+motherboard with 2 usb ports and 1 video output
+usb disk drive with floppy
+usb memory-mapped keyboard
+memory-mapped text/video console
+
+8-bit:
+commodore 64 is a classic computer with built-in keyboard and ports for peripherals
+conventionally used with commodore 1541 floppy disk drive and 5.25" floppy disk
+MOS 6502 microprocessor with MOS 6502 instruction set
+```
 
 Appendix
 --------
@@ -848,12 +874,6 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 - nasm: x86 assembler, assembles bytecode for an x86 processor.
 - Make: compilation tool, automates build process.
 - `x86_64-elf-gcc`, `x86_64-elf-ld` (`brew install i386-elf-binutils i386-elf-gcc`): binary utilities and GCC compiler for x86, cross-compiled for M1 Mac.
-
-#### Hardware
-* x86_32 CPU
-* motherboard? with usb port
-* terminal display console
-* usb drive which can be formatted with os-image
 
 #### Acknowledgement
 
