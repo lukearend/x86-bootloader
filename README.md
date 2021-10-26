@@ -855,6 +855,10 @@ From https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html.
 * terminal display console
 * usb drive which can be formatted with os-image
 
+#### Acknowledgement
+
+This document follows the presentation in Nick Blundell's "Writing a Simple Operating System -- from Scratch" quite closely. In fact, some explanations are paraphrased or copied from it and most of the code files are sourced from that book directly. I have combined it with my own comments and perspectives into a document in one voice, but the credit for this very well-thought out learning path belongs entirely to Dr. Blundell.
+
 [^0]: We take the assembler as a given.
 
 [^1]: The CPU interprets zero-valued bytes as no-ops and thus knows to keep reading past them. If these bytes remain uninitialized, the CPU will attempt to execute them and either get itself into a bad state and reboot, or stumble upon a BIOS function that reformats the disk.
