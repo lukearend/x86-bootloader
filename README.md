@@ -227,44 +227,43 @@ The global descriptor table is an important data structure in memory which is us
 An entry in the global descriptor table occupies 8 bytes and looks like this:
 
 ```
+ 31        24 23   22   21   20   19             16 15  14  13 12  11   8 7          0
++------------+---+-----+---+-----+-----------------+---+------+---+------+------------+ byte
+| base 31:24 | G | D/B | L | AVL | seg limit 19:16 | P | DPL  | S | type | base 23:16 |  4
++------------+---+-----+---+-----+-----------------+---+------+---+------+------------+
 
-     31        24 23   22   21   20   19             16 15  14  13 12  11   8 7          0
-    +------------+---+-----+---+-----+-----------------+---+------+---+------+------------+ byte
-    | base 31:24 | G | D/B | L | AVL | seg limit 19:16 | P | DPL  | S | type | base 23:16 |  4
-    +------------+---+-----+---+-----+-----------------+---+------+---+------+------------+
+ 31                                   16 15                                    0
++------------------------------------------+------------------------------------------+ byte
+|            base address 15:00            |            segment limit 15:00           |  0
++------------------------------------------+------------------------------------------+
 
-     31                                   16 15                                    0
-    +------------------------------------------+------------------------------------------+ byte
-    |            base address 15:00            |            segment limit 15:00           |  0
-    +------------------------------------------+------------------------------------------+
-    base/limit:
-        LIMIT (2 bytes, 4 bits) segment limit
-        BASE  (1 byte, 2 bytes) segment base address
+base/limit:
+    LIMIT (2 bytes, 4 bits) segment limit
+    BASE  (1 byte, 2 bytes) segment base address
 
-    1st flags:
-        P     (1 bit)           segment present (use 1, indicates segment is present in memory)
-        DPL   (2 bits)          descriptor privilege level (00 is highest privilege)
-        S     (1 bit)           descriptor type (0=system, 1=code or data)
+1st flags:
+    P     (1 bit)           segment present (use 1, indicates segment is present in memory)
+    DPL   (2 bits)          descriptor privilege level (00 is highest privilege)
+    S     (1 bit)           descriptor type (0=system, 1=code or data)
 
-    type flags:
-        TYPE  (4 bits)          segment type
-            code        (1 bit) 1 (this is a code segment) or 0
+type flags:
+    TYPE  (4 bits)          segment type
+        code        (1 bit) 1 (this is a code segment) or 0
 
-        [if code segment]
-            conforming  (1 bit) 0 (not conforming [protects memory]) or 1 (conforming)
-            readable    (1 bit) 1 (readable) or 0 (execute-only)
-        [if data segment]
-            expand down (1 bit) 1 (allow segment to expand down) or 0
-            writeable   (1 bit) 1 (writeable) or 0 (read-only)
-      
-            accessed    (1 bit) 0 (set to 1 once accessed)
+    [if code segment]
+        conforming  (1 bit) 0 (not conforming [protects memory]) or 1 (conforming)
+        readable    (1 bit) 1 (readable) or 0 (execute-only)
+    [if data segment]
+        expand down (1 bit) 1 (allow segment to expand down) or 0
+        writeable   (1 bit) 1 (writeable) or 0 (read-only)
 
-    2nd flags:
-        G     (1 bit)           granularity (left-shift limit by 3)
-        D/B   (1 bit)           default operation size (0=16-bit segment, 1=32-bit segment)
-        L     (1 bit)           64-bit code segment (IA-32e mode only)
-        AVL   (1 bit)           available for user by system software
+        accessed    (1 bit) 0 (set to 1 once accessed)
 
+2nd flags:
+    G     (1 bit)           granularity (left-shift limit by 3)
+    D/B   (1 bit)           default operation size (0=16-bit segment, 1=32-bit segment)
+    L     (1 bit)           64-bit code segment (IA-32e mode only)
+    AVL   (1 bit)           available for user by system software
 ```
 
 * **segment base address**: this is the offset that this entry describes.
@@ -746,13 +745,6 @@ Like before, we can construct our OS image by concatenating `load_kernel.bin` wi
 At this point it is good to turn our attention towards hardware. What are the real-life products we need to put this computer together? The first thing is the microprocessor itself, and the motherboard it is mounted upon. The purpose of the motherboard is to connect the CPU to memory and its peripheral devices. In particular, we want a _socketed_ processor, meaning one which can be attached to a motherboard via a socket.
 
 ```
-#### Hardware
-* x86_32 CPU
-* motherboard? with usb port
-* terminal display console
-* usb drive which can be formatted with os-image
-
-
 todo: flesh out this section
 
 socketed x86 32-bit microprocessor
@@ -761,10 +753,14 @@ usb disk drive with floppy
 usb memory-mapped keyboard
 memory-mapped text/video console
 
-8-bit:
-commodore 64 is a classic computer with built-in keyboard and ports for peripherals
+8-bit option:
+commodore 64 is a classic 8-bit computer with built-in keyboard and ports for peripherals
 conventionally used with commodore 1541 floppy disk drive and 5.25" floppy disk
 MOS 6502 microprocessor with MOS 6502 instruction set
+programmable in BASIC high-level language
+
+should also check out the PDP-8 (https://en.wikipedia.org/wiki/PDP-8) from 1965
+1987 Winkel & Prosser, The Art of Digital Design
 ```
 
 Appendix
