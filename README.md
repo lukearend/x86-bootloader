@@ -1,5 +1,5 @@
-os-dev
-======
+x86-bootloader
+==============
 
 _build an x86 bootloader_
 
