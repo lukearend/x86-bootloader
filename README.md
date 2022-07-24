@@ -1,9 +1,9 @@
 os-dev
 ======
 
-_learn about computation by building an operating system_
+_build an x86 bootloader_
 
-The point of this project is to learn about computation by developing a simple operating system from scratch. The first question we face when developing on bare metal is which computer architecture to use. A _computer architecture_, (or _instruction set_), is a mapping from binary machine codes to well-defined hardware operations. During execution, the CPU reads machine codes in sequence and executes the corresponding operations to manipulate memory and its internal state.
+The point of this project is to learn about computation by developing an OS bootloader from scratch. The first question we face when developing on bare metal is which computer architecture to use. A _computer architecture_, (or _instruction set_), is a mapping from binary machine codes to well-defined hardware operations. During execution, the CPU reads machine codes in sequence and executes the corresponding operations to manipulate memory and its internal state.
 
 The main two instruction set categories are x86 and ARM, each having their own advantages. The x86 architecture (rather, family of architectures) was introduced by Intel in 1978 for the Intel 8086 microprocessor. The 8086 had an instruction size of 16 bits, which greatly limited the range of memory it could reach by comparison to today. Thus in 1985 Intel released a 32-bit version of the x86 architecture for the i386 microprocessor. This enabled the CPU to reach a far greater range of memory, around 4 GB. Finally, a 64-bit version of x86 was released in 1999 which included new modes and further built-in support for memory management. We will focus on the 32-bit version of the x86 architecure to keep things simple.
 
